@@ -2,6 +2,7 @@ use std::collections;
 use std::sync::Arc;
 use std::time;
 
+use chrono::Utc;
 use futures::future::join_all;
 use hook_common::health::HealthHandle;
 use hook_common::pgqueue::PgTransactionBatch;
@@ -234,6 +235,10 @@ async fn process_webhook_job<W: WebhookJob>(
 
     match send_result {
         Ok(_) => {
+            let insert_to_complete_duration = Utc::now() - webhook_job.job().created_at;
+            metrics::histogram!("webhook_jobs_insert_to_complete_duration_seconds", &labels)
+                .record((insert_to_complete_duration.num_milliseconds() as f64) / 1_000_f64);
+
             webhook_job.complete().await.map_err(|error| {
                 metrics::counter!("webhook_jobs_database_error", &labels).increment(1);
                 error
