@@ -6,7 +6,6 @@ use chrono::Utc;
 use futures::future::join_all;
 use hook_common::health::HealthHandle;
 use hook_common::pgqueue::PgTransactionBatch;
-use hook_common::webhook;
 use hook_common::{
     pgqueue::{
         DatabaseError, Job, PgQueue, PgQueueJob, PgTransactionJob, RetryError, RetryInvalidError,
