@@ -95,6 +95,7 @@ impl<'p> WebhookWorker<'p> {
             .default_headers(headers)
             .user_agent("PostHog Webhook Worker")
             .timeout(request_timeout)
+            // .dns_resolver()
             .build()
             .expect("failed to construct reqwest client for webhook worker");
 

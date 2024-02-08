@@ -7,9 +7,11 @@ edition = "2021"
 axum = { workspace = true }
 chrono = { workspace = true }
 envconfig = { workspace = true }
-futures = "0.3"
+futures = { workspace = true }
+futures-util = { workspace = true }
 hook-common = { path = "../hook-common" }
 http = { version = "0.2" }
+hyper = { workspace = true }
 metrics = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
@@ -20,4 +22,4 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true }
-url = { version = "2.2" }
+url = { workspace = true }

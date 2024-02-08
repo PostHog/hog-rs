@@ -26,9 +26,11 @@ envconfig = "0.10.0"
 eyre = "0.6.9"
 flate2 = "1.0"
 futures = { version = "0.3.29" }
+futures-util = { version = "0.3.29" }
 governor = { version = "0.5.1", features = ["dashmap"] }
 http = { version = "0.2" }
 http-body-util = "0.1.0"
+hyper = "0.14"
 metrics = "0.22.0"
 metrics-exporter-prometheus = "0.13.0"
 rand = "0.8.5"
