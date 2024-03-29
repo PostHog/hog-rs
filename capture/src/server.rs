@@ -64,7 +64,7 @@ where
                 partition.clean_state().await;
             });
         }
-        let sink = KafkaSink::new(config.kafka, sink_liveness, partition)
+        let sink = KafkaSink::new(config.kafka, sink_liveness, Some(partition))
             .expect("failed to start Kafka sink");
 
         router::router(

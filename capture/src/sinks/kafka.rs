@@ -82,14 +82,14 @@ impl rdkafka::ClientContext for KafkaContext {
 pub struct KafkaSink {
     producer: FutureProducer<KafkaContext>,
     topic: String,
-    partition: OverflowLimiter,
+    partition: Option<OverflowLimiter>,
 }
 
 impl KafkaSink {
     pub fn new(
         config: KafkaConfig,
         liveness: HealthHandle,
-        partition: OverflowLimiter,
+        partition: Option<OverflowLimiter>,
     ) -> anyhow::Result<KafkaSink> {
         info!("connecting to Kafka brokers at {}...", config.kafka_hosts);
 
@@ -206,7 +206,10 @@ impl KafkaSink {
 impl Event for KafkaSink {
     #[instrument(skip_all)]
     async fn send(&self, event: ProcessedEvent) -> Result<(), CaptureError> {
-        let limited = self.partition.is_limited(&event.key());
+        let limited = match &self.partition {
+            Some(limiter) => limiter.is_limited(&event.key()),
+            None => false,
+        };
         let ack =
             Self::kafka_send(self.producer.clone(), self.topic.clone(), event, limited).await?;
         histogram!("capture_event_batch_size").record(1.0);
@@ -222,7 +225,10 @@ impl Event for KafkaSink {
         for event in events {
             let producer = self.producer.clone();
             let topic = self.topic.clone();
-            let limited = self.partition.is_limited(&event.key());
+            let limited = match &self.partition {
+                Some(limiter) => limiter.is_limited(&event.key()),
+                None => false,
+            };
 
             // We await kafka_send to get events in the producer queue sequentially
             let ack = Self::kafka_send(producer, topic, event, limited).await?;
@@ -295,7 +301,7 @@ mod tests {
             kafka_topic: "events_plugin_ingestion".to_string(),
             kafka_tls: false,
         };
-        let sink = KafkaSink::new(config, handle, limiter).expect("failed to create sink");
+        let sink = KafkaSink::new(config, handle, Some(limiter)).expect("failed to create sink");
         (cluster, sink)
     }
 
