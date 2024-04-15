@@ -6,12 +6,12 @@ edition = "2021"
 [dependencies]
 capture = { path = "../capture" }
 envconfig = { workspace = true }
-opentelemetry = { version = "0.21.0", features = ["trace"]}
-opentelemetry-otlp = "0.14.0"
-opentelemetry_sdk = { version = "0.21.0", features = ["trace", "rt-tokio"] }
+opentelemetry = { version = "0.22.0", features = ["trace"]}
+opentelemetry-otlp = "0.15.0"
+opentelemetry_sdk = { version = "0.22.1", features = ["trace", "rt-tokio"] }
 tokio = { workspace = true }
 tracing = { workspace = true }
-tracing-opentelemetry = "0.22.0"
+tracing-opentelemetry = "0.23.0"
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [dev-dependencies]
