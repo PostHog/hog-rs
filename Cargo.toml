@@ -10,9 +10,6 @@ members = [
   "hook-janitor",
 ]
 
-# [profile.release]
-# debug = 2 # https://www.polarsignals.com/docs/rust
-
 [workspace.dependencies]
 anyhow = "1.0"
 assert-json-diff = "2.0.2"
@@ -27,13 +24,13 @@ eyre = "0.6.9"
 flate2 = "1.0"
 futures = { version = "0.3.29" }
 governor = { version = "0.5.1", features = ["dashmap"] }
-http = { version = "0.2" }
+http = { version = "1.1.0" }
 http-body-util = "0.1.0"
 metrics = "0.22.0"
-metrics-exporter-prometheus = "0.13.0"
+metrics-exporter-prometheus = "0.14.0"
 rand = "0.8.5"
 rdkafka = { version = "0.36.0", features = ["cmake-build", "ssl", "tracing"] }
-reqwest = { version = "0.11" }
+reqwest = { version = "0.12.3" }
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = { version = "1.0" }
 serde_json = { version = "1.0" }
