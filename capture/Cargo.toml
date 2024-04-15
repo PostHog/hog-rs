@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = { version = "0.6.15" } # TODO: Bring up to date with the workspace.
+axum = { workspace = true }
 axum-client-ip = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
@@ -36,4 +36,4 @@ envconfig = { workspace = true }
 
 [dev-dependencies]
 assert-json-diff = { workspace = true }
-axum-test-helper = "0.2.0"
+axum-test-helper = { git = "https://github.com/orphan-rs/axum-test-helper.git" } # TODO: remove, directly use reqwest like capture-server tests
