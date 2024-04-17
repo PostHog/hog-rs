@@ -98,7 +98,7 @@ pub async fn event(
         Ok(token) => token,
         Err(err) => {
             report_dropped_events("token_shape_invalid", request.events().len() as u64);
-            return Err(err)
+            return Err(err);
         }
     };
     let is_historical = request.is_historical();

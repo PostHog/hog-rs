@@ -131,7 +131,7 @@ impl RawRequest {
     pub fn is_historical(&self) -> bool {
         match self {
             RawRequest::Batch(req) => req.historical_migration.unwrap_or_default(),
-            _ => false
+            _ => false,
         }
     }
 }
@@ -148,9 +148,7 @@ pub fn extract_token(events: &[RawEvent]) -> Result<String, CaptureError> {
     return match distinct_tokens.len() {
         0 => Err(CaptureError::NoTokenError),
         1 => match distinct_tokens.iter().last() {
-            Some(Some(token)) => {
-                Ok(token.clone())
-            }
+            Some(Some(token)) => Ok(token.clone()),
             _ => Err(CaptureError::NoTokenError),
         },
         _ => Err(CaptureError::MultipleTokensError),
@@ -223,12 +221,12 @@ impl ProcessedEvent {
 
 #[cfg(test)]
 mod tests {
+    use crate::token::InvalidTokenReason;
     use base64::Engine as _;
     use bytes::Bytes;
     use rand::distributions::Alphanumeric;
     use rand::Rng;
     use serde_json::json;
-    use crate::token::InvalidTokenReason;
 
     use super::CaptureError;
     use super::RawRequest;
@@ -242,7 +240,9 @@ mod tests {
                 .expect("payload is not base64"),
         );
 
-        let events = RawRequest::from_bytes(compressed_bytes).expect("failed to parse").events();
+        let events = RawRequest::from_bytes(compressed_bytes)
+            .expect("failed to parse")
+            .events();
         assert_eq!(1, events.len());
         assert_eq!(Some("my_token1".to_string()), events[0].extract_token());
         assert_eq!("my_event1".to_string(), events[0].event);
@@ -262,7 +262,9 @@ mod tests {
                 .expect("payload is not base64"),
         );
 
-        let events = RawRequest::from_bytes(compressed_bytes).expect("failed to parse").events();
+        let events = RawRequest::from_bytes(compressed_bytes)
+            .expect("failed to parse")
+            .events();
         assert_eq!(1, events.len());
         assert_eq!(Some("my_token2".to_string()), events[0].extract_token());
         assert_eq!("my_event2".to_string(), events[0].event);
@@ -277,7 +279,9 @@ mod tests {
     #[test]
     fn extract_distinct_id() {
         let parse_and_extract = |input: &'static str| -> Result<String, CaptureError> {
-            let parsed = RawRequest::from_bytes(input.into()).expect("failed to parse").events();
+            let parsed = RawRequest::from_bytes(input.into())
+                .expect("failed to parse")
+                .events();
             parsed[0].extract_distinct_id()
         };
         // Return MissingDistinctId if not found
@@ -338,7 +342,9 @@ mod tests {
             "distinct_id": distinct_id
         }]);
 
-        let parsed = RawRequest::from_bytes(input.to_string().into()).expect("failed to parse").events();
+        let parsed = RawRequest::from_bytes(input.to_string().into())
+            .expect("failed to parse")
+            .events();
         assert_eq!(
             parsed[0].extract_distinct_id().expect("failed to extract"),
             expected_distinct_id
@@ -348,7 +354,9 @@ mod tests {
     #[test]
     fn extract_and_verify_token() {
         let parse_and_extract = |input: &'static str| -> Result<String, CaptureError> {
-            RawRequest::from_bytes(input.into()).expect("failed to parse").extract_and_verify_token()
+            RawRequest::from_bytes(input.into())
+                .expect("failed to parse")
+                .extract_and_verify_token()
         };
 
         let assert_extracted_token = |input: &'static str, expected: &str| {
@@ -365,41 +373,41 @@ mod tests {
         // Return TokenValidationError if token empty
         assert!(matches!(
             parse_and_extract(r#"{"api_key": "", "batch":[{"event": "e"}]}"#),
-            Err(CaptureError::TokenValidationError(InvalidTokenReason::Empty))
+            Err(CaptureError::TokenValidationError(
+                InvalidTokenReason::Empty
+            ))
         ));
 
         // Return TokenValidationError if personal apikey
         assert!(matches!(
             parse_and_extract(r#"[{"event": "e", "token": "phx_hellothere"}]"#),
-            Err(CaptureError::TokenValidationError(InvalidTokenReason::PersonalApiKey))
+            Err(CaptureError::TokenValidationError(
+                InvalidTokenReason::PersonalApiKey
+            ))
         ));
 
         // Return MultipleTokensError if tokens don't match in array
         assert!(matches!(
-            parse_and_extract(r#"[{"event": "e", "token": "token1"},{"event": "e", "token": "token2"}]"#),
+            parse_and_extract(
+                r#"[{"event": "e", "token": "token1"},{"event": "e", "token": "token2"}]"#
+            ),
             Err(CaptureError::MultipleTokensError)
         ));
 
         // Return token from array if consistent
         assert_extracted_token(
             r#"[{"event":"e","token":"token1"},{"event":"e","token":"token1"}]"#,
-            "token1"
+            "token1",
         );
 
         // Return token from batch if present
         assert_extracted_token(
             r#"{"batch":[{"event":"e","token":"token1"}],"api_key":"batched"}"#,
-            "batched"
+            "batched",
         );
 
         // Return token from single event if present
-        assert_extracted_token(
-            r#"{"event":"e","$token":"single_token"}"#,
-            "single_token"
-        );
-        assert_extracted_token(
-            r#"{"event":"e","api_key":"single_token"}"#,
-            "single_token"
-        );
+        assert_extracted_token(r#"{"event":"e","$token":"single_token"}"#, "single_token");
+        assert_extracted_token(r#"{"event":"e","api_key":"single_token"}"#, "single_token");
     }
 }
