@@ -4,7 +4,7 @@ use std::sync::Arc;
 use axum::{debug_handler, Json};
 use bytes::Bytes;
 // TODO: stream this instead
-use axum::extract::{Query, State};
+use axum::extract::{Query, State, MatchedPath};
 use axum::http::{HeaderMap, Method};
 use axum_client_ip::InsecureClientIp;
 use base64::Engine;
@@ -32,6 +32,7 @@ use crate::{
 #[instrument(
     skip_all,
     fields(
+        path,
         token,
         batch_size,
         user_agent,
@@ -49,11 +50,9 @@ pub async fn event(
     meta: Query<EventQuery>,
     headers: HeaderMap,
     method: Method,
+    path: MatchedPath,
     body: Bytes,
 ) -> Result<Json<CaptureResponse>, CaptureError> {
-    // content-type
-    // user-agent
-
     let user_agent = headers
         .get("user-agent")
         .map_or("unknown", |v| v.to_str().unwrap_or("unknown"));
@@ -72,6 +71,7 @@ pub async fn event(
     tracing::Span::current().record("version", meta.lib_version.clone());
     tracing::Span::current().record("compression", comp.as_str());
     tracing::Span::current().record("method", method.as_str());
+    tracing::Span::current().record("path", path.as_str());
 
     let request = match headers
         .get("content-type")
