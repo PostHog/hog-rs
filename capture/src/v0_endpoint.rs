@@ -1,28 +1,33 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use bytes::Bytes;
-
 use axum::{debug_handler, Json};
+use bytes::Bytes;
 // TODO: stream this instead
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, Method};
 use axum_client_ip::InsecureClientIp;
 use base64::Engine;
 use metrics::counter;
-
 use time::OffsetDateTime;
 use tracing::instrument;
 
-use crate::event::{Compression, ProcessingContext, RawRequest};
 use crate::limiters::billing::QuotaResource;
 use crate::prometheus::report_dropped_events;
+use crate::v0_request::{Compression, ProcessingContext, RawRequest};
 use crate::{
-    api::{CaptureError, CaptureResponse, CaptureResponseCode},
-    event::{EventFormData, EventQuery, ProcessedEvent, RawEvent},
+    api::{CaptureError, CaptureResponse, CaptureResponseCode, ProcessedEvent},
     router, sinks,
     utils::uuid_v7,
+    v0_request::{EventFormData, EventQuery, RawEvent},
 };
+
+/// Flexible endpoint that targets wide compatibility with the wide range of requests
+/// currently processed by posthog-events (analytics events capture). Replay is out
+/// of scope and should be processed on a separate endpoint.
+///
+/// Because it must accommodate several shapes, it is inefficient in places. A v1
+/// endpoint should be created, that only accepts the BatchedRequest payload shape.
 
 #[instrument(
     skip_all,
@@ -101,7 +106,7 @@ pub async fn event(
             return Err(err);
         }
     };
-    let is_historical = request.is_historical();
+    let is_historical = request.is_historical(); // TODO: use to write to historical topic
     let events = request.events(); // Takes ownership of request
 
     tracing::Span::current().record("token", &token);

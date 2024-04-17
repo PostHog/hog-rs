@@ -201,24 +201,6 @@ pub struct ProcessingContext {
     pub client_ip: String,
 }
 
-#[derive(Clone, Default, Debug, Serialize, Eq, PartialEq)]
-pub struct ProcessedEvent {
-    pub uuid: Uuid,
-    pub distinct_id: String,
-    pub ip: String,
-    pub data: String,
-    pub now: String,
-    #[serde(with = "time::serde::rfc3339::option")]
-    pub sent_at: Option<OffsetDateTime>,
-    pub token: String,
-}
-
-impl ProcessedEvent {
-    pub fn key(&self) -> String {
-        format!("{}:{}", self.token, self.distinct_id)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::token::InvalidTokenReason;
