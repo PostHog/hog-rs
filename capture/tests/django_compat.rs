@@ -87,11 +87,6 @@ async fn it_matches_django_capture_behaviour() -> anyhow::Result<()> {
             continue;
         }
         let case: RequestDump = serde_json::from_str(&line_contents)?;
-        if !case.path.starts_with("/e/") {
-            println!("Skipping {} test case", &case.path);
-            continue;
-        }
-
         let raw_body = general_purpose::STANDARD.decode(&case.body)?;
         assert_eq!(
             case.method, "POST",
@@ -116,7 +111,7 @@ async fn it_matches_django_capture_behaviour() -> anyhow::Result<()> {
         );
 
         let client = TestClient::new(app);
-        let mut req = client.post(&format!("/i/v0{}", case.path)).body(raw_body);
+        let mut req = client.post(&case.path).body(raw_body);
         if !case.content_encoding.is_empty() {
             req = req.header("Content-encoding", case.content_encoding);
         }
@@ -163,8 +158,15 @@ async fn it_matches_django_capture_behaviour() -> anyhow::Result<()> {
             if let Some(expected_data) = expected.get_mut("data") {
                 // Data is a serialized JSON map. Unmarshall both and compare them,
                 // instead of expecting the serialized bytes to be equal
-                let expected_props: Value =
+                let mut expected_props: Value =
                     serde_json::from_str(expected_data.as_str().expect("not str"))?;
+                if let Some(object) = expected_props.as_object_mut() {
+                    // toplevel fields added by posthog-node that plugin-server will ignore anyway
+                    object.remove("type");
+                    object.remove("library");
+                    object.remove("library_version");
+                }
+
                 let found_props: Value = serde_json::from_str(&message.data)?;
                 let match_config =
                     assert_json_diff::Config::new(assert_json_diff::CompareMode::Strict);

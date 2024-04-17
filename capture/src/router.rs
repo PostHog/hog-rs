@@ -61,6 +61,30 @@ pub fn router<
         .route("/_readiness", get(index))
         .route("/_liveness", get(move || ready(liveness.get_status())))
         .route(
+            "/e",
+            post(v0_endpoint::event)
+                .get(v0_endpoint::event)
+                .options(v0_endpoint::options),
+        )
+        .route(
+            "/e/",
+            post(v0_endpoint::event)
+                .get(v0_endpoint::event)
+                .options(v0_endpoint::options),
+        )
+        .route(
+            "/batch",
+            post(v0_endpoint::event)
+                .get(v0_endpoint::event)
+                .options(v0_endpoint::options),
+        )
+        .route(
+            "/batch/",
+            post(v0_endpoint::event)
+                .get(v0_endpoint::event)
+                .options(v0_endpoint::options),
+        )
+        .route(
             "/i/v0/e",
             post(v0_endpoint::event)
                 .get(v0_endpoint::event)

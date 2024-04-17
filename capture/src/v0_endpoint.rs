@@ -4,12 +4,11 @@ use std::sync::Arc;
 use axum::{debug_handler, Json};
 use bytes::Bytes;
 // TODO: stream this instead
-use axum::extract::{Query, State, MatchedPath};
+use axum::extract::{MatchedPath, Query, State};
 use axum::http::{HeaderMap, Method};
 use axum_client_ip::InsecureClientIp;
 use base64::Engine;
 use metrics::counter;
-use time::OffsetDateTime;
 use tracing::instrument;
 
 use crate::limiters::billing::QuotaResource;
@@ -71,7 +70,7 @@ pub async fn event(
     tracing::Span::current().record("version", meta.lib_version.clone());
     tracing::Span::current().record("compression", comp.as_str());
     tracing::Span::current().record("method", method.as_str());
-    tracing::Span::current().record("path", path.as_str());
+    tracing::Span::current().record("path", path.as_str().trim_end_matches('/'));
 
     let request = match headers
         .get("content-type")
@@ -99,6 +98,7 @@ pub async fn event(
         }
     }?;
 
+    let sent_at = request.sent_at().or(meta.sent_at());
     let token = match request.extract_and_verify_token() {
         Ok(token) => token,
         Err(err) => {
@@ -118,17 +118,6 @@ pub async fn event(
     }
 
     counter!("capture_events_received_total").increment(events.len() as u64);
-
-    let sent_at = meta.sent_at.and_then(|value| {
-        let value_nanos: i128 = i128::from(value) * 1_000_000; // Assuming the value is in milliseconds, latest posthog-js releases
-        if let Ok(sent_at) = OffsetDateTime::from_unix_timestamp_nanos(value_nanos) {
-            if sent_at.year() > 2020 {
-                // Could be lower if the input is in seconds
-                return Some(sent_at);
-            }
-        }
-        None
-    });
 
     let context = ProcessingContext {
         lib_version: meta.lib_version.clone(),

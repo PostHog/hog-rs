@@ -5,6 +5,7 @@ use bytes::{Buf, Bytes};
 use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use time::format_description::well_known::Iso8601;
 use time::OffsetDateTime;
 use tracing::instrument;
 use uuid::Uuid;
@@ -29,7 +30,25 @@ pub struct EventQuery {
     pub lib_version: Option<String>,
 
     #[serde(alias = "_")]
-    pub sent_at: Option<i64>,
+    sent_at: Option<i64>,
+}
+
+impl EventQuery {
+    /// Returns the parsed value of the sent_at timestamp if present in the query params.
+    /// We only support the format sent by recent posthog-js versions, in milliseconds integer.
+    /// Values in seconds integer (older SDKs will be ignored).
+    pub fn sent_at(&self) -> Option<OffsetDateTime> {
+        if let Some(value) = self.sent_at {
+            let value_nanos: i128 = i128::from(value) * 1_000_000; // Assuming the value is in milliseconds, latest posthog-js releases
+            if let Ok(sent_at) = OffsetDateTime::from_unix_timestamp_nanos(value_nanos) {
+                if sent_at.year() > 2020 {
+                    // Could be lower if the input is in seconds
+                    return Some(sent_at);
+                }
+            }
+        }
+        None
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -76,8 +95,10 @@ pub enum RawRequest {
 
 #[derive(Deserialize)]
 pub struct BatchedRequest {
-    pub api_key: String,
+    #[serde(alias = "api_key")]
+    pub token: String,
     pub historical_migration: Option<bool>,
+    pub sent_at: Option<String>,
     pub batch: Vec<RawEvent>,
 }
 
@@ -120,7 +141,7 @@ impl RawRequest {
 
     pub fn extract_and_verify_token(&self) -> Result<String, CaptureError> {
         let token = match self {
-            RawRequest::Batch(req) => req.api_key.to_string(),
+            RawRequest::Batch(req) => req.token.to_string(),
             RawRequest::One(event) => event.extract_token().ok_or(CaptureError::NoTokenError)?,
             RawRequest::Array(events) => extract_token(events)?,
         };
@@ -133,6 +154,17 @@ impl RawRequest {
             RawRequest::Batch(req) => req.historical_migration.unwrap_or_default(),
             _ => false,
         }
+    }
+
+    pub fn sent_at(&self) -> Option<OffsetDateTime> {
+        if let RawRequest::Batch(req) = &self {
+            if let Some(value) = &req.sent_at {
+                if let Ok(parsed) = OffsetDateTime::parse(value, &Iso8601::DEFAULT) {
+                    return Some(parsed);
+                }
+            }
+        }
+        None
     }
 }
 
