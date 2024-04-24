@@ -9,7 +9,6 @@ edition = "2021"
 axum = { workspace = true }
 envconfig = { workspace = true }
 eyre = { workspace = true }
-health = { path = "../common/health" }
 hook-common = { path = "../hook-common" }
 http-body-util = { workspace = true }
 metrics = { workspace = true }
