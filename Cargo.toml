@@ -13,7 +13,7 @@ members = [
 
 [workspace.lints.rust]
 # See https://doc.rust-lang.org/stable/rustc/lints/listing/allowed-by-default.html
-unsafe_code = "forbid" # forbid cannot be ignored with an annotation
+unsafe_code = "forbid"            # forbid cannot be ignored with an annotation
 unstable_features = "forbid"
 macro_use_extern_crate = "forbid"
 let_underscore_drop = "deny"
@@ -46,7 +46,7 @@ metrics = "0.22.0"
 metrics-exporter-prometheus = "0.14.0"
 rand = "0.8.5"
 rdkafka = { version = "0.36.0", features = ["cmake-build", "ssl", "tracing"] }
-reqwest = { version = "0.12.3" }
+reqwest = { version = "0.12.3", features = ["stream"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_derive = { version = "1.0" }
 serde_json = { version = "1.0" }
