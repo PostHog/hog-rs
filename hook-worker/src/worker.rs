@@ -19,6 +19,7 @@ use tokio::sync;
 use tracing::error;
 
 use crate::error::{WebhookError, WebhookParseError, WebhookRequestError, WorkerError};
+use crate::util::first_n_bytes_of_response;
 
 /// A WebhookJob is any `PgQueueJob` with `WebhookJobParameters` and `WebhookJobMetadata`.
 trait WebhookJob: PgQueueJob + std::marker::Send {
@@ -407,7 +408,7 @@ async fn send_webhook(
                 Err(WebhookError::Request(
                     WebhookRequestError::RetryableRequestError {
                         error: err,
-                        response: response.text().await.ok(),
+                        response: first_n_bytes_of_response(response, 10 * 1024).await.ok(),
                         retry_after,
                     },
                 ))
@@ -415,7 +416,7 @@ async fn send_webhook(
                 Err(WebhookError::Request(
                     WebhookRequestError::NonRetryableRetryableRequestError {
                         error: err,
-                        response: response.text().await.ok(),
+                        response: first_n_bytes_of_response(response, 10 * 1024).await.ok(),
                     },
                 ))
             }
