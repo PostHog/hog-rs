@@ -48,7 +48,7 @@ impl fmt::Display for WebhookRequestError {
             }
             | WebhookRequestError::NonRetryableRetryableRequestError { error, response } => {
                 let response_message = match response {
-                    Some(m) => format!("{}", m),
+                    Some(m) => m.to_string(),
                     None => "No response from the server".to_string(),
                 };
                 writeln!(f, "{}", error)?;
