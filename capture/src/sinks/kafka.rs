@@ -80,8 +80,9 @@ impl rdkafka::ClientContext for KafkaContext {
 #[derive(Clone)]
 pub struct KafkaSink {
     producer: FutureProducer<KafkaContext>,
-    topic: String,
     partition: OverflowLimiter,
+    main_topic: String,
+    historical_topic: String,
 }
 
 impl KafkaSink {
@@ -128,7 +129,8 @@ impl KafkaSink {
         Ok(KafkaSink {
             producer,
             partition,
-            topic: config.kafka_topic,
+            main_topic: config.kafka_topic,
+            historical_topic: config.kafka_historical_topic,
         })
     }
 
@@ -207,8 +209,13 @@ impl Event for KafkaSink {
     #[instrument(skip_all)]
     async fn send(&self, event: ProcessedEvent) -> Result<(), CaptureError> {
         let limited = self.partition.is_limited(&event.key());
-        let ack =
-            Self::kafka_send(self.producer.clone(), self.topic.clone(), event, limited).await?;
+        let ack = Self::kafka_send(
+            self.producer.clone(),
+            self.main_topic.clone(),
+            event,
+            limited,
+        )
+        .await?;
         histogram!("capture_event_batch_size").record(1.0);
         Self::process_ack(ack)
             .instrument(info_span!("ack_wait_one"))
@@ -221,7 +228,7 @@ impl Event for KafkaSink {
         let batch_size = events.len();
         for event in events {
             let producer = self.producer.clone();
-            let topic = self.topic.clone();
+            let topic = self.main_topic.clone();
             let limited = self.partition.is_limited(&event.key());
 
             // We await kafka_send to get events in the producer queue sequentially
@@ -292,6 +299,7 @@ mod tests {
             kafka_compression_codec: "none".to_string(),
             kafka_hosts: cluster.bootstrap_servers(),
             kafka_topic: "events_plugin_ingestion".to_string(),
+            kafka_historical_topic: "events_plugin_ingestion_historical".to_string(),
             kafka_tls: false,
         };
         let sink = KafkaSink::new(config, handle, limiter).expect("failed to create sink");

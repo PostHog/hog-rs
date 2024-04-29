@@ -5,6 +5,12 @@ use crate::api::{CaptureError, ProcessedEvent};
 pub mod kafka;
 pub mod print;
 
+pub enum DataType {
+    AnalyticsMain,
+    AnalyticsOverflow,
+    AnalyticsHistorical,
+}
+
 #[async_trait]
 pub trait Event {
     async fn send(&self, event: ProcessedEvent) -> Result<(), CaptureError>;
