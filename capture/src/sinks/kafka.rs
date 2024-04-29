@@ -11,11 +11,11 @@ use tokio::task::JoinSet;
 use tracing::log::{debug, error, info};
 use tracing::{info_span, instrument, Instrument};
 
-use crate::api::{CaptureError, ProcessedEvent};
+use crate::api::{CaptureError, DataType, ProcessedEvent};
 use crate::config::KafkaConfig;
 use crate::limiters::overflow::OverflowLimiter;
 use crate::prometheus::report_dropped_events;
-use crate::sinks::{DataType, Event};
+use crate::sinks::Event;
 
 struct KafkaContext {
     liveness: HealthHandle,
@@ -139,28 +139,23 @@ impl KafkaSink {
         self.producer.flush(Duration::new(30, 0))
     }
 
-    async fn kafka_send(
-        &self,
-        event: ProcessedEvent,
-        data_type: &DataType,
-    ) -> Result<DeliveryFuture, CaptureError> {
+    async fn kafka_send(&self, event: ProcessedEvent) -> Result<DeliveryFuture, CaptureError> {
         let payload = serde_json::to_string(&event).map_err(|e| {
             error!("failed to serialize event: {}", e);
             CaptureError::NonRetryableSinkError
         })?;
 
         let event_key = event.key();
-        let (topic, partition_key): (&str, Option<&str>) = match data_type {
+        let (topic, partition_key): (&str, Option<&str>) = match &event.data_type {
+            DataType::AnalyticsHistorical => (&self.historical_topic, Some(event_key.as_str())), // We never trigger overflow on historical events
             DataType::AnalyticsMain => {
-                // TODO: move overflow up in the handler
+                // TODO: deprecate capture-led overflow or move logic in handler
                 if self.partition.is_limited(&event_key) {
-                    (&self.main_topic, None)
+                    (&self.main_topic, None) // Analytics overflow goes to the main topic without locality
                 } else {
                     (&self.main_topic, Some(event_key.as_str()))
                 }
             }
-            DataType::AnalyticsOverflow => (&self.main_topic, None), // Overflow is going on the main topic for analytics
-            DataType::AnalyticsHistorical => (&self.historical_topic, Some(event_key.as_str())), // We never trigger overflow on historical events
         };
 
         match self.producer.send_result(FutureRecord {
@@ -217,8 +212,8 @@ impl KafkaSink {
 #[async_trait]
 impl Event for KafkaSink {
     #[instrument(skip_all)]
-    async fn send(&self, data_type: DataType, event: ProcessedEvent) -> Result<(), CaptureError> {
-        let ack = self.kafka_send(event, &data_type).await?;
+    async fn send(&self, event: ProcessedEvent) -> Result<(), CaptureError> {
+        let ack = self.kafka_send(event).await?;
         histogram!("capture_event_batch_size").record(1.0);
         Self::process_ack(ack)
             .instrument(info_span!("ack_wait_one"))
@@ -226,16 +221,12 @@ impl Event for KafkaSink {
     }
 
     #[instrument(skip_all)]
-    async fn send_batch(
-        &self,
-        data_type: DataType,
-        events: Vec<ProcessedEvent>,
-    ) -> Result<(), CaptureError> {
+    async fn send_batch(&self, events: Vec<ProcessedEvent>) -> Result<(), CaptureError> {
         let mut set = JoinSet::new();
         let batch_size = events.len();
         for event in events {
             // We await kafka_send to get events in the producer queue sequentially
-            let ack = self.kafka_send(event, &data_type).await?;
+            let ack = self.kafka_send(event).await?;
 
             // Then stash the returned DeliveryFuture, waiting concurrently for the write ACKs from brokers.
             set.spawn(Self::process_ack(ack));
@@ -269,11 +260,11 @@ impl Event for KafkaSink {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::{CaptureError, ProcessedEvent};
+    use crate::api::{CaptureError, DataType, ProcessedEvent};
     use crate::config;
     use crate::limiters::overflow::OverflowLimiter;
     use crate::sinks::kafka::KafkaSink;
-    use crate::sinks::{DataType, Event};
+    use crate::sinks::Event;
     use crate::utils::uuid_v7;
     use health::HealthRegistry;
     use rand::distributions::Alphanumeric;
@@ -316,6 +307,7 @@ mod tests {
 
         let (cluster, sink) = start_on_mocked_sink().await;
         let event: ProcessedEvent = ProcessedEvent {
+            data_type: DataType::AnalyticsMain,
             uuid: uuid_v7(),
             distinct_id: "id1".to_string(),
             ip: "".to_string(),
@@ -327,20 +319,16 @@ mod tests {
 
         // Wait for producer to be healthy, to keep kafka_message_timeout_ms short and tests faster
         for _ in 0..20 {
-            if sink
-                .send(DataType::AnalyticsMain, event.clone())
-                .await
-                .is_ok()
-            {
+            if sink.send(event.clone()).await.is_ok() {
                 break;
             }
         }
 
         // Send events to confirm happy path
-        sink.send(DataType::AnalyticsMain, event.clone())
+        sink.send(event.clone())
             .await
             .expect("failed to send one initial event");
-        sink.send_batch(DataType::AnalyticsMain, vec![event.clone(), event.clone()])
+        sink.send_batch(vec![event.clone(), event.clone()])
             .await
             .expect("failed to send initial event batch");
 
@@ -351,6 +339,7 @@ mod tests {
             .map(char::from)
             .collect();
         let big_event: ProcessedEvent = ProcessedEvent {
+            data_type: DataType::AnalyticsMain,
             uuid: uuid_v7(),
             distinct_id: "id1".to_string(),
             ip: "".to_string(),
@@ -359,7 +348,7 @@ mod tests {
             sent_at: None,
             token: "token1".to_string(),
         };
-        match sink.send(DataType::AnalyticsMain, big_event).await {
+        match sink.send(big_event).await {
             Err(CaptureError::EventTooBig) => {} // Expected
             Err(err) => panic!("wrong error code {}", err),
             Ok(()) => panic!("should have errored"),
@@ -369,7 +358,7 @@ mod tests {
         cluster.clear_request_errors(RDKafkaApiKey::Produce);
         let err = [RDKafkaRespErr::RD_KAFKA_RESP_ERR_MSG_SIZE_TOO_LARGE; 1];
         cluster.request_errors(RDKafkaApiKey::Produce, &err);
-        match sink.send(DataType::AnalyticsMain, event.clone()).await {
+        match sink.send(event.clone()).await {
             Err(CaptureError::EventTooBig) => {} // Expected
             Err(err) => panic!("wrong error code {}", err),
             Ok(()) => panic!("should have errored"),
@@ -377,10 +366,7 @@ mod tests {
         cluster.clear_request_errors(RDKafkaApiKey::Produce);
         let err = [RDKafkaRespErr::RD_KAFKA_RESP_ERR_INVALID_PARTITIONS; 1];
         cluster.request_errors(RDKafkaApiKey::Produce, &err);
-        match sink
-            .send_batch(DataType::AnalyticsMain, vec![event.clone(), event.clone()])
-            .await
-        {
+        match sink.send_batch(vec![event.clone(), event.clone()]).await {
             Err(CaptureError::RetryableSinkError) => {} // Expected
             Err(err) => panic!("wrong error code {}", err),
             Ok(()) => panic!("should have errored"),
@@ -390,13 +376,13 @@ mod tests {
         cluster.clear_request_errors(RDKafkaApiKey::Produce);
         let err = [RDKafkaRespErr::RD_KAFKA_RESP_ERR_BROKER_NOT_AVAILABLE; 2];
         cluster.request_errors(RDKafkaApiKey::Produce, &err);
-        sink.send(DataType::AnalyticsMain, event.clone())
+        sink.send(event.clone())
             .await
             .expect("failed to send one event after recovery");
         cluster.clear_request_errors(RDKafkaApiKey::Produce);
         let err = [RDKafkaRespErr::RD_KAFKA_RESP_ERR_BROKER_NOT_AVAILABLE; 2];
         cluster.request_errors(RDKafkaApiKey::Produce, &err);
-        sink.send_batch(DataType::AnalyticsMain, vec![event.clone(), event.clone()])
+        sink.send_batch(vec![event.clone(), event.clone()])
             .await
             .expect("failed to send event batch after recovery");
 
@@ -404,15 +390,12 @@ mod tests {
         cluster.clear_request_errors(RDKafkaApiKey::Produce);
         let err = [RDKafkaRespErr::RD_KAFKA_RESP_ERR_BROKER_NOT_AVAILABLE; 50];
         cluster.request_errors(RDKafkaApiKey::Produce, &err);
-        match sink.send(DataType::AnalyticsMain, event.clone()).await {
+        match sink.send(event.clone()).await {
             Err(CaptureError::RetryableSinkError) => {} // Expected
             Err(err) => panic!("wrong error code {}", err),
             Ok(()) => panic!("should have errored"),
         };
-        match sink
-            .send_batch(DataType::AnalyticsMain, vec![event.clone(), event.clone()])
-            .await
-        {
+        match sink.send_batch(vec![event.clone(), event.clone()]).await {
             Err(CaptureError::RetryableSinkError) => {} // Expected
             Err(err) => panic!("wrong error code {}", err),
             Ok(()) => panic!("should have errored"),

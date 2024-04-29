@@ -13,10 +13,9 @@ use tracing::instrument;
 
 use crate::limiters::billing::QuotaResource;
 use crate::prometheus::report_dropped_events;
-use crate::sinks::DataType;
 use crate::v0_request::{Compression, ProcessingContext, RawRequest};
 use crate::{
-    api::{CaptureError, CaptureResponse, CaptureResponseCode, ProcessedEvent},
+    api::{CaptureError, CaptureResponse, CaptureResponseCode, DataType, ProcessedEvent},
     router, sinks,
     utils::uuid_v7,
     v0_request::{EventFormData, EventQuery, RawEvent},
@@ -121,16 +120,12 @@ pub async fn event(
     counter!("capture_events_received_total").increment(events.len() as u64);
 
     let context = ProcessingContext {
-        data_type: if is_historical {
-            DataType::AnalyticsHistorical
-        } else {
-            DataType::AnalyticsMain
-        },
         lib_version: meta.lib_version.clone(),
         sent_at,
         token,
         now: state.timesource.current_time(),
         client_ip: ip.to_string(),
+        is_historical,
     };
 
     let billing_limited = state
@@ -180,12 +175,18 @@ pub fn process_single_event(
         return Err(CaptureError::MissingEventName);
     }
 
+    let data_type = match context.is_historical {
+        true => DataType::AnalyticsHistorical,
+        false => DataType::AnalyticsMain,
+    };
+
     let data = serde_json::to_string(&event).map_err(|e| {
         tracing::error!("failed to encode data field: {}", e);
         CaptureError::NonRetryableSinkError
     })?;
 
     Ok(ProcessedEvent {
+        data_type,
         uuid: event.uuid.unwrap_or_else(uuid_v7),
         distinct_id: event.extract_distinct_id()?,
         ip: context.client_ip.clone(),
@@ -210,8 +211,8 @@ pub async fn process_events<'a>(
     tracing::debug!(events=?events, "processed {} events", events.len());
 
     if events.len() == 1 {
-        sink.send(context.data_type, events[0].clone()).await
+        sink.send(events[0].clone()).await
     } else {
-        sink.send_batch(context.data_type, events).await
+        sink.send_batch(events).await
     }
 }
