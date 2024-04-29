@@ -262,8 +262,9 @@ async fn it_trims_distinct_id() -> Result<()> {
     let distinct_id2 = random_string("id", 222);
     let (trimmed_distinct_id2, _) = distinct_id2.split_at(200); // works because ascii chars
 
-    let topic = EphemeralTopic::new().await;
-    let server = ServerHandle::for_topic(&topic).await;
+    let main_topic = EphemeralTopic::new().await;
+    let histo_topic = EphemeralTopic::new().await;
+    let server = ServerHandle::for_topics(&main_topic, &histo_topic).await;
 
     let event = json!([{
         "token": token,
@@ -278,14 +279,14 @@ async fn it_trims_distinct_id() -> Result<()> {
     assert_eq!(StatusCode::OK, res.status());
 
     assert_json_include!(
-        actual: topic.next_event()?,
+        actual: main_topic.next_event()?,
         expected: json!({
             "token": token,
             "distinct_id": distinct_id1
         })
     );
     assert_json_include!(
-        actual: topic.next_event()?,
+        actual: main_topic.next_event()?,
         expected: json!({
             "token": token,
             "distinct_id": trimmed_distinct_id2

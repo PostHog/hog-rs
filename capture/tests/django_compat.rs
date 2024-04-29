@@ -160,12 +160,13 @@ async fn it_matches_django_capture_behaviour() -> anyhow::Result<()> {
             if let Some(value) = expected.get_mut("sent_at") {
                 // Default ISO format is different between python and rust, both are valid
                 // Parse and re-print the value before comparison
-                let raw_value = value.as_str().expect("empty");
+                let raw_value = value.as_str().expect("sent_at field is not a string");
                 if raw_value.is_empty() {
                     *value = Value::Null
                 } else {
                     let sent_at =
-                        OffsetDateTime::parse(value.as_str().expect("empty"), &Iso8601::DEFAULT).expect("failed to parse expected sent_at");
+                        OffsetDateTime::parse(value.as_str().expect("empty"), &Iso8601::DEFAULT)
+                            .expect("failed to parse expected sent_at");
                     *value = Value::String(sent_at.format(&Rfc3339)?)
                 }
             }

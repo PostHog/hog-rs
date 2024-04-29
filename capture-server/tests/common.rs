@@ -62,12 +62,6 @@ pub struct ServerHandle {
 }
 
 impl ServerHandle {
-    pub async fn for_topic(topic: &EphemeralTopic) -> Self {
-        let mut config = DEFAULT_CONFIG.clone();
-        config.kafka.kafka_topic = topic.topic_name().to_string();
-        Self::for_config(config).await
-    }
-
     pub async fn for_topics(main: &EphemeralTopic, historical: &EphemeralTopic) -> Self {
         let mut config = DEFAULT_CONFIG.clone();
         config.kafka.kafka_topic = main.topic_name().to_string();
