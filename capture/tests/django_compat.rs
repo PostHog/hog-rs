@@ -8,7 +8,7 @@ use capture::api::{CaptureError, CaptureResponse, CaptureResponseCode, Processed
 use capture::limiters::billing::BillingLimiter;
 use capture::redis::MockRedisClient;
 use capture::router::router;
-use capture::sinks::Event;
+use capture::sinks::{DataType, Event};
 use capture::time::TimeSource;
 use health::HealthRegistry;
 use serde::Deserialize;
@@ -61,12 +61,16 @@ impl MemorySink {
 
 #[async_trait]
 impl Event for MemorySink {
-    async fn send(&self, event: ProcessedEvent) -> Result<(), CaptureError> {
+    async fn send(&self, _: DataType, event: ProcessedEvent) -> Result<(), CaptureError> {
         self.events.lock().unwrap().push(event);
         Ok(())
     }
 
-    async fn send_batch(&self, events: Vec<ProcessedEvent>) -> Result<(), CaptureError> {
+    async fn send_batch(
+        &self,
+        _: DataType,
+        events: Vec<ProcessedEvent>,
+    ) -> Result<(), CaptureError> {
         self.events.lock().unwrap().extend_from_slice(&events);
         Ok(())
     }

@@ -13,6 +13,7 @@ use tracing::instrument;
 
 use crate::limiters::billing::QuotaResource;
 use crate::prometheus::report_dropped_events;
+use crate::sinks::DataType;
 use crate::v0_request::{Compression, ProcessingContext, RawRequest};
 use crate::{
     api::{CaptureError, CaptureResponse, CaptureResponseCode, ProcessedEvent},
@@ -120,6 +121,11 @@ pub async fn event(
     counter!("capture_events_received_total").increment(events.len() as u64);
 
     let context = ProcessingContext {
+        data_type: if is_historical {
+            DataType::AnalyticsHistorical
+        } else {
+            DataType::AnalyticsMain
+        },
         lib_version: meta.lib_version.clone(),
         sent_at,
         token,
@@ -204,8 +210,8 @@ pub async fn process_events<'a>(
     tracing::debug!(events=?events, "processed {} events", events.len());
 
     if events.len() == 1 {
-        sink.send(events[0].clone()).await
+        sink.send(context.data_type, events[0].clone()).await
     } else {
-        sink.send_batch(events).await
+        sink.send_batch(context.data_type, events).await
     }
 }

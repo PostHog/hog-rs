@@ -11,6 +11,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::api::CaptureError;
+use crate::sinks::DataType;
 use crate::token::validate_token;
 
 #[derive(Deserialize, Default)]
@@ -227,6 +228,7 @@ impl RawEvent {
 
 #[derive(Debug)]
 pub struct ProcessingContext {
+    pub data_type: DataType,
     pub lib_version: Option<String>,
     pub sent_at: Option<OffsetDateTime>,
     pub token: String,
