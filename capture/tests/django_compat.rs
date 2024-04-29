@@ -29,6 +29,8 @@ struct RequestDump {
     now: String,
     body: String,
     output: Vec<Value>,
+    #[serde(default)]
+    is_historical: bool,
 }
 
 static REQUESTS_DUMP_FILE_NAME: &str = "tests/requests_dump.jsonl";
@@ -147,16 +149,25 @@ async fn it_matches_django_capture_behaviour() -> anyhow::Result<()> {
             sink.events().iter().zip(case.output.iter()).enumerate()
         {
             // Ensure the data type matches
-            assert_eq!(DataType::AnalyticsMain, message.data_type);
+            if case.is_historical {
+                assert_eq!(DataType::AnalyticsHistorical, message.data_type);
+            } else {
+                assert_eq!(DataType::AnalyticsMain, message.data_type);
+            }
 
             // Normalizing the expected event to align with known django->rust inconsistencies
             let mut expected = expected.clone();
             if let Some(value) = expected.get_mut("sent_at") {
                 // Default ISO format is different between python and rust, both are valid
                 // Parse and re-print the value before comparison
-                let sent_at =
-                    OffsetDateTime::parse(value.as_str().expect("empty"), &Iso8601::DEFAULT)?;
-                *value = Value::String(sent_at.format(&Rfc3339)?)
+                let raw_value = value.as_str().expect("empty");
+                if raw_value.is_empty() {
+                    *value = Value::Null
+                } else {
+                    let sent_at =
+                        OffsetDateTime::parse(value.as_str().expect("empty"), &Iso8601::DEFAULT).expect("failed to parse expected sent_at");
+                    *value = Value::String(sent_at.format(&Rfc3339)?)
+                }
             }
             if let Some(expected_data) = expected.get_mut("data") {
                 // Data is a serialized JSON map. Unmarshall both and compare them,
