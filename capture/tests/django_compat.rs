@@ -4,7 +4,7 @@ use axum::http::StatusCode;
 use axum_test_helper::TestClient;
 use base64::engine::general_purpose;
 use base64::Engine;
-use capture::api::{CaptureError, CaptureResponse, CaptureResponseCode, ProcessedEvent};
+use capture::api::{CaptureError, CaptureResponse, CaptureResponseCode, DataType, ProcessedEvent};
 use capture::limiters::billing::BillingLimiter;
 use capture::redis::MockRedisClient;
 use capture::router::router;
@@ -146,6 +146,9 @@ async fn it_matches_django_capture_behaviour() -> anyhow::Result<()> {
         for (event_number, (message, expected)) in
             sink.events().iter().zip(case.output.iter()).enumerate()
         {
+            // Ensure the data type matches
+            assert_eq!(DataType::AnalyticsMain, message.data_type);
+
             // Normalizing the expected event to align with known django->rust inconsistencies
             let mut expected = expected.clone();
             if let Some(value) = expected.get_mut("sent_at") {
