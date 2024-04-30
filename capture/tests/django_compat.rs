@@ -30,7 +30,7 @@ struct RequestDump {
     body: String,
     output: Vec<Value>,
     #[serde(default)]
-    is_historical: bool,
+    historical_migration: bool,
 }
 
 static REQUESTS_DUMP_FILE_NAME: &str = "tests/requests_dump.jsonl";
@@ -149,7 +149,7 @@ async fn it_matches_django_capture_behaviour() -> anyhow::Result<()> {
             sink.events().iter().zip(case.output.iter()).enumerate()
         {
             // Ensure the data type matches
-            if case.is_historical {
+            if case.historical_migration {
                 assert_eq!(DataType::AnalyticsHistorical, message.data_type);
             } else {
                 assert_eq!(DataType::AnalyticsMain, message.data_type);

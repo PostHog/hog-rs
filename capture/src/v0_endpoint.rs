@@ -39,7 +39,7 @@ use crate::{
         content_type,
         version,
         compression,
-        is_historical
+        historical_migration
     )
 )]
 #[debug_handler]
@@ -106,11 +106,11 @@ pub async fn event(
             return Err(err);
         }
     };
-    let is_historical = request.is_historical(); // TODO: use to write to historical topic
+    let historical_migration = request.historical_migration();
     let events = request.events(); // Takes ownership of request
 
     tracing::Span::current().record("token", &token);
-    tracing::Span::current().record("is_historical", is_historical);
+    tracing::Span::current().record("historical_migration", historical_migration);
     tracing::Span::current().record("batch_size", events.len());
 
     if events.is_empty() {
@@ -125,7 +125,7 @@ pub async fn event(
         token,
         now: state.timesource.current_time(),
         client_ip: ip.to_string(),
-        is_historical,
+        historical_migration,
     };
 
     let billing_limited = state
@@ -175,7 +175,7 @@ pub fn process_single_event(
         return Err(CaptureError::MissingEventName);
     }
 
-    let data_type = match context.is_historical {
+    let data_type = match context.historical_migration {
         true => DataType::AnalyticsHistorical,
         false => DataType::AnalyticsMain,
     };
