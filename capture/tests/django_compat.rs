@@ -29,7 +29,7 @@ struct RequestDump {
     now: String,
     body: String,
     output: Vec<Value>,
-    #[serde(default)]
+    #[serde(default)] // default = false
     historical_migration: bool,
 }
 
