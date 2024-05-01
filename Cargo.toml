@@ -5,6 +5,7 @@ members = [
   "capture",
   "capture-server",
   "common/health",
+  "feature-flags",
   "hook-api",
   "hook-common",
   "hook-janitor",
