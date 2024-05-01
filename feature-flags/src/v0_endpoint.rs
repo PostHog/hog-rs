@@ -53,7 +53,7 @@ pub async fn flags(
 
     tracing::Span::current().record("user_agent", user_agent);
     tracing::Span::current().record("content_encoding", content_encoding);
-    // tracing::Span::current().record("version", meta.lib_version.clone());
+    tracing::Span::current().record("version", meta.version.clone());
     tracing::Span::current().record("method", method.as_str());
     tracing::Span::current().record("path", path.as_str().trim_end_matches('/'));
 
