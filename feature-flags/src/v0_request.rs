@@ -1,4 +1,4 @@
-use std::collections::{HashMap};
+use std::collections::HashMap;
 // use std::io::prelude::*;
 
 use bytes::Bytes;
@@ -11,10 +11,8 @@ use tracing::instrument;
 
 use crate::api::FlagError;
 
-
 #[derive(Deserialize, Default)]
 pub struct FlagsQueryParams {
-
     #[serde(alias = "v")]
     pub version: Option<String>,
 
@@ -55,9 +53,9 @@ impl FlagRequest {
         tracing::debug!(len = bytes.len(), "decoding new request");
         // TODO: Add base64 decoding
         let payload = String::from_utf8(bytes.into()).map_err(|e| {
-                tracing::error!("failed to decode body: {}", e);
-                FlagError::RequestDecodingError(String::from("invalid body encoding"))
-            })?;
+            tracing::error!("failed to decode body: {}", e);
+            FlagError::RequestDecodingError(String::from("invalid body encoding"))
+        })?;
 
         tracing::debug!(json = payload, "decoded event data");
         Ok(serde_json::from_str::<FlagRequest>(&payload)?)
@@ -65,16 +63,16 @@ impl FlagRequest {
 
     pub fn extract_and_verify_token(&self) -> Result<String, FlagError> {
         let token = match self {
-            FlagRequest { token: Some(token), .. } => token.to_string(),
+            FlagRequest {
+                token: Some(token), ..
+            } => token.to_string(),
             _ => return Err(FlagError::NoTokenError),
         };
         // TODO: Get tokens from redis, confirm this one is valid
         // validate_token(&token)?;
         Ok(token)
     }
-
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -117,7 +115,6 @@ mod tests {
             parse_and_extract(r#"[{"event": "e", "token": "phx_hellothere"}]"#),
             Ok(_)
         ));
-
 
         // Return token from array if consistent
         assert_extracted_token(

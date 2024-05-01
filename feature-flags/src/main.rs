@@ -1,4 +1,3 @@
-
 use envconfig::Envconfig;
 use tokio::signal;
 use tracing_subscriber::layer::SubscriberExt;
@@ -30,9 +29,7 @@ async fn main() {
     // Basic logging for now:
     //   - stdout with a level configured by the RUST_LOG envvar (default=ERROR)
     let log_layer = tracing_subscriber::fmt::layer().with_filter(EnvFilter::from_default_env());
-    tracing_subscriber::registry()
-        .with(log_layer)
-        .init();
+    tracing_subscriber::registry().with(log_layer).init();
 
     // Open the TCP port and start the server
     let listener = tokio::net::TcpListener::bind(config.address)

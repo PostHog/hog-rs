@@ -15,7 +15,7 @@ pub enum FlagsResponseCode {
 pub struct FlagsResponse {
     pub error_while_computing_flags: bool,
     // TODO: better typing here, support bool responses
-    pub feature_flags: HashMap<String, String>
+    pub feature_flags: HashMap<String, String>,
 }
 
 #[derive(Error, Debug)]
@@ -47,12 +47,11 @@ impl IntoResponse for FlagError {
             | FlagError::EmptyDistinctId
             | FlagError::MissingDistinctId => (StatusCode::BAD_REQUEST, self.to_string()),
 
-            FlagError::NoTokenError
-            | FlagError::TokenValidationError => (StatusCode::UNAUTHORIZED, self.to_string()),
-
-            FlagError::RateLimited => {
-                (StatusCode::TOO_MANY_REQUESTS, self.to_string())
+            FlagError::NoTokenError | FlagError::TokenValidationError => {
+                (StatusCode::UNAUTHORIZED, self.to_string())
             }
+
+            FlagError::RateLimited => (StatusCode::TOO_MANY_REQUESTS, self.to_string()),
         }
         .into_response()
     }

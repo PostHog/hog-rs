@@ -7,10 +7,7 @@ use axum::{
     Router,
 };
 
-use crate::{
-    redis::Client, v0_endpoint,
-};
-
+use crate::{redis::Client, v0_endpoint};
 
 #[derive(Clone)]
 pub struct State {
@@ -18,16 +15,8 @@ pub struct State {
     // TODO: Add pgClient when ready
 }
 
-
-
-pub fn router<
-    R: Client + Send + Sync + 'static,
->(
-    redis: Arc<R>,
-) -> Router {
-    let state = State {
-        redis,
-    };
+pub fn router<R: Client + Send + Sync + 'static>(redis: Arc<R>) -> Router {
+    let state = State { redis };
 
     // // Very permissive CORS policy, as old SDK versions
     // // and reverse proxies might send funky headers.
@@ -38,12 +27,7 @@ pub fn router<
     //     .allow_origin(AllowOrigin::mirror_request());
 
     let router = Router::new()
-        .route(
-            "/flags",
-            post(v0_endpoint::flags)
-                .get(v0_endpoint::flags)
-        )
-        
+        .route("/flags", post(v0_endpoint::flags).get(v0_endpoint::flags))
         .with_state(state);
 
     router

@@ -13,13 +13,10 @@ pub async fn serve<F>(config: Config, listener: TcpListener, shutdown: F)
 where
     F: Future<Output = ()> + Send + 'static,
 {
-
     let redis_client =
         Arc::new(RedisClient::new(config.redis_url).expect("failed to create redis client"));
 
-    let app = router::router(
-        redis_client,
-    );
+    let app = router::router(redis_client);
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`

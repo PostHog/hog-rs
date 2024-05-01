@@ -11,11 +11,10 @@ use axum_client_ip::InsecureClientIp;
 use base64::Engine;
 use tracing::instrument;
 
-
 use crate::{
     api::{FlagError, FlagsResponse},
     router,
-    v0_request::{FlagsQueryParams, FlagRequest},
+    v0_request::{FlagRequest, FlagsQueryParams},
 };
 
 /// Feature flag evaluation endpoint.
@@ -52,7 +51,6 @@ pub async fn flags(
         .get("content-encoding")
         .map_or("unknown", |v| v.to_str().unwrap_or("unknown"));
 
-
     tracing::Span::current().record("user_agent", user_agent);
     tracing::Span::current().record("content_encoding", content_encoding);
     // tracing::Span::current().record("version", meta.lib_version.clone());
@@ -64,7 +62,9 @@ pub async fn flags(
         .map_or("", |v| v.to_str().unwrap_or(""))
     {
         "application/x-www-form-urlencoded" => {
-            return Err(FlagError::RequestDecodingError(String::from("invalid form data")));
+            return Err(FlagError::RequestDecodingError(String::from(
+                "invalid form data",
+            )));
         }
         ct => {
             tracing::Span::current().record("content_type", ct);
@@ -83,6 +83,9 @@ pub async fn flags(
 
     Ok(Json(FlagsResponse {
         error_while_computing_flags: false,
-        feature_flags: HashMap::from([("beta-feature".to_string(), "variant-1".to_string()), ("rollout-flag".to_string(), true.to_string())]),
+        feature_flags: HashMap::from([
+            ("beta-feature".to_string(), "variant-1".to_string()),
+            ("rollout-flag".to_string(), true.to_string()),
+        ]),
     }))
 }
