@@ -11,7 +11,6 @@ pub async fn first_n_bytes_of_response(
 
     while let Some(chunk) = body.next().await {
         if buffer.len() >= n {
-            // Early return before reading next chunk.
             break;
         }
 
