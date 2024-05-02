@@ -1,11 +1,6 @@
-use std::future::ready;
 use std::sync::Arc;
 
-use axum::http::Method;
-use axum::{
-    routing::{get, post},
-    Router,
-};
+use axum::{routing::post, Router};
 
 use crate::{redis::Client, v0_endpoint};
 

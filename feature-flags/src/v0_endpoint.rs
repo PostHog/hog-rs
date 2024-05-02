@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::ops::Deref;
-use std::sync::Arc;
 
 use axum::{debug_handler, Json};
 use bytes::Bytes;
@@ -8,7 +6,6 @@ use bytes::Bytes;
 use axum::extract::{MatchedPath, Query, State};
 use axum::http::{HeaderMap, Method};
 use axum_client_ip::InsecureClientIp;
-use base64::Engine;
 use tracing::instrument;
 
 use crate::{
@@ -36,7 +33,7 @@ use crate::{
 )]
 #[debug_handler]
 pub async fn flags(
-    state: State<router::State>,
+    _state: State<router::State>,
     InsecureClientIp(ip): InsecureClientIp,
     meta: Query<FlagsQueryParams>,
     headers: HeaderMap,
@@ -56,6 +53,7 @@ pub async fn flags(
     tracing::Span::current().record("version", meta.version.clone());
     tracing::Span::current().record("method", method.as_str());
     tracing::Span::current().record("path", path.as_str().trim_end_matches('/'));
+    tracing::Span::current().record("ip", ip.to_string());
 
     let request = match headers
         .get("content-type")

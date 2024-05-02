@@ -1,13 +1,9 @@
 use std::collections::HashMap;
-// use std::io::prelude::*;
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-// use time::format_description::well_known::Iso8601;
-// use time::OffsetDateTime;
 use tracing::instrument;
-// use uuid::Uuid;
 
 use crate::api::FlagError;
 
@@ -15,9 +11,6 @@ use crate::api::FlagError;
 pub struct FlagsQueryParams {
     #[serde(alias = "v")]
     pub version: Option<String>,
-
-    #[serde(alias = "_")]
-    sent_at: Option<i64>,
 }
 
 #[derive(Default, Debug, Deserialize, Serialize)]
