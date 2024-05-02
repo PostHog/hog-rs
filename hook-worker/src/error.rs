@@ -47,6 +47,8 @@ pub enum WebhookResponseError {
     ParseUTF8StringError(#[from] std::str::Utf8Error),
     #[error("error while iterating over response body chunks")]
     StreamIterationError(#[from] reqwest::Error),
+    #[error("attempted to slice a chunk of length {0} with an out of bounds index of {1}")]
+    ChunkOutOfBoundsError(usize, usize),
 }
 
 /// Implement display of `WebhookRequestError` by appending to the underlying `reqwest::Error`
