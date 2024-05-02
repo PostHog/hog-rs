@@ -214,7 +214,9 @@ async fn it_matches_django_capture_behaviour() -> anyhow::Result<()> {
             {
                 println!(
                     "record mismatch at line {}, event {}: {}",
-                    line_number+1, event_number, e
+                    line_number + 1,
+                    event_number,
+                    e
                 );
                 mismatches += 1;
             }
