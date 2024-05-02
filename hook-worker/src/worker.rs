@@ -644,7 +644,7 @@ mod tests {
         let url = "http://localhost:18081/fail";
         let headers = collections::HashMap::new();
         // This is double the current hardcoded amount of bytes.
-        // TODO: Make this configurable and chage it here too.
+        // TODO: Make this configurable and change it here too.
         let body = (0..20 * 1024).map(|_| "a").collect::<Vec<_>>().concat();
         let client = reqwest::Client::new();
 
