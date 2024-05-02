@@ -408,6 +408,7 @@ async fn send_webhook(
                 Err(WebhookError::Request(
                     WebhookRequestError::RetryableRequestError {
                         error: err,
+                        // TODO: Make amount of bytes configurable.
                         response: first_n_bytes_of_response(response, 10 * 1024).await.ok(),
                         retry_after,
                     },
@@ -629,6 +630,35 @@ mod tests {
         if let WebhookError::Request(request_error) = err {
             assert_eq!(request_error.status(), Some(StatusCode::BAD_REQUEST));
             assert!(request_error.to_string().contains(body));
+            // This is the display implementation of reqwest. Just checking it is still there.
+            // See: https://github.com/seanmonstar/reqwest/blob/master/src/error.rs
+            assert!(request_error.to_string().contains(
+                "HTTP status client error (400 Bad Request) for url (http://localhost:18081/fail)"
+            ));
+        }
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn test_error_message_contains_up_to_n_bytes_of_response_body(_pg: PgPool) {
+        let method = HttpMethod::POST;
+        let url = "http://localhost:18081/fail";
+        let headers = collections::HashMap::new();
+        // This is double the current hardcoded amount of bytes.
+        // TODO: Make this configurable and chage it here too.
+        let body = (0..20 * 1024).map(|_| "a").collect::<Vec<_>>().concat();
+        let client = reqwest::Client::new();
+
+        let err = send_webhook(client, &method, url, &headers, body.to_owned())
+            .await
+            .err()
+            .expect("request didn't fail when it should have failed");
+
+        assert!(matches!(err, WebhookError::Request(..)));
+        if let WebhookError::Request(request_error) = err {
+            assert_eq!(request_error.status(), Some(StatusCode::BAD_REQUEST));
+            assert!(request_error.to_string().contains(&body[0..10 * 1024]));
+            // The 81 bytes account for the reqwest erorr message as described below.
+            assert_eq!(request_error.to_string().len(), 10 * 1024 + 81);
             // This is the display implementation of reqwest. Just checking it is still there.
             // See: https://github.com/seanmonstar/reqwest/blob/master/src/error.rs
             assert!(request_error.to_string().contains(

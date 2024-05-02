@@ -38,6 +38,17 @@ pub enum WebhookRequestError {
     },
 }
 
+/// Enumeration of errors that can occur while handling a `reqwest::Response`.
+/// Currently, not consumed anywhere. Grouped here to support a common error type for
+/// `utils::first_n_bytes_of_response`.
+#[derive(Error, Debug)]
+pub enum WebhookResponseError {
+    #[error("failed to parse a response as UTF8")]
+    ParseUTF8StringError(#[from] std::str::Utf8Error),
+    #[error("error while iterating over response body chunks")]
+    StreamIterationError(#[from] reqwest::Error),
+}
+
 /// Implement display of `WebhookRequestError` by appending to the underlying `reqwest::Error`
 /// any response message if available.
 impl fmt::Display for WebhookRequestError {
