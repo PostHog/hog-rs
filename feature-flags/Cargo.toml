@@ -14,7 +14,6 @@ envconfig = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-base64 = { workspace = true }
 bytes = { workspace = true }
 rand = { workspace = true }
 redis = { version = "0.23.3", features = [

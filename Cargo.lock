@@ -715,7 +715,6 @@ dependencies = [
  "async-trait",
  "axum 0.7.5",
  "axum-client-ip",
- "base64 0.22.0",
  "bytes",
  "envconfig",
  "once_cell",
