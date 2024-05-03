@@ -18,6 +18,7 @@ use reqwest::header;
 use tokio::sync;
 use tracing::error;
 
+use crate::dns::PublicIPv4Resolver;
 use crate::error::{WebhookError, WebhookParseError, WebhookRequestError, WorkerError};
 use crate::util::first_n_bytes_of_response;
 
@@ -84,6 +85,7 @@ impl<'p> WebhookWorker<'p> {
         request_timeout: time::Duration,
         max_concurrent_jobs: usize,
         retry_policy: RetryPolicy,
+        allow_internal_ips: bool,
         liveness: HealthHandle,
     ) -> Self {
         let mut headers = header::HeaderMap::new();
@@ -92,10 +94,14 @@ impl<'p> WebhookWorker<'p> {
             header::HeaderValue::from_static("application/json"),
         );
 
-        let client = reqwest::Client::builder()
+        let mut client_builder = reqwest::Client::builder()
             .default_headers(headers)
             .user_agent("PostHog Webhook Worker")
-            .timeout(request_timeout)
+            .timeout(request_timeout);
+        if !allow_internal_ips {
+            client_builder = client_builder.dns_resolver(Arc::new(PublicIPv4Resolver {}))
+        }
+        let client = client_builder
             .build()
             .expect("failed to construct reqwest client for webhook worker");
 
@@ -569,6 +575,7 @@ mod tests {
             time::Duration::from_millis(5000),
             10,
             RetryPolicy::default(),
+            false,
             liveness,
         );
 
