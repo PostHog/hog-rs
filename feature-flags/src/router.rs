@@ -21,9 +21,7 @@ pub fn router<R: Client + Send + Sync + 'static>(redis: Arc<R>) -> Router {
     //     .allow_credentials(true)
     //     .allow_origin(AllowOrigin::mirror_request());
 
-    let router = Router::new()
+    Router::new()
         .route("/flags", post(v0_endpoint::flags).get(v0_endpoint::flags))
-        .with_state(state);
-
-    router
+        .with_state(state)
 }
