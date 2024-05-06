@@ -89,8 +89,10 @@ impl Resolve for PublicIPv4Resolver {
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::dns::{NoPublicIPError, PublicIPv4Resolver};
+    use reqwest::dns::{Name, Resolve};
     use std::str::FromStr;
 
     #[tokio::test]
