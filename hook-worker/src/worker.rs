@@ -18,8 +18,10 @@ use reqwest::{header, Client};
 use tokio::sync;
 use tracing::error;
 
-use crate::dns::PublicIPv4Resolver;
-use crate::error::{WebhookError, WebhookParseError, WebhookRequestError, WorkerError};
+use crate::dns::{NoPublicIPv4Error, PublicIPv4Resolver};
+use crate::error::{
+    is_error_source, WebhookError, WebhookParseError, WebhookRequestError, WorkerError,
+};
 use crate::util::first_n_bytes_of_response;
 
 /// A WebhookJob is any `PgQueueJob` with `WebhookJobParameters` and `WebhookJobMetadata`.
@@ -401,10 +403,19 @@ async fn send_webhook(
         .body(body)
         .send()
         .await
-        .map_err(|e| WebhookRequestError::RetryableRequestError {
-            error: e,
-            response: None,
-            retry_after: None,
+        .map_err(|e| {
+            if is_error_source::<NoPublicIPv4Error>(&e) {
+                WebhookRequestError::NonRetryableRetryableRequestError {
+                    error: e,
+                    response: None,
+                }
+            } else {
+                WebhookRequestError::RetryableRequestError {
+                    error: e,
+                    response: None,
+                    retry_after: None,
+                }
+            }
         })?;
 
     let retry_after = parse_retry_after_header(response.headers());
@@ -703,6 +714,9 @@ mod tests {
             assert!(request_error
                 .to_string()
                 .contains("No public IPv4 found for specified host"));
+            if let WebhookRequestError::RetryableRequestError { .. } = request_error {
+                panic!("error should not be retryable")
+            }
         } else {
             panic!("unexpected error type {:?}", err)
         }
