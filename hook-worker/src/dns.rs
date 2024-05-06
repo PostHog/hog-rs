@@ -73,14 +73,9 @@ impl Resolve for PublicIPv4Resolver {
                 Err(err)
             }
             Err(join_err) => {
-                // The tokio task failed, error handled copied from hyper's GaiResolver
-                if join_err.is_cancelled() {
-                    let err: BoxError =
-                        Box::new(io::Error::new(io::ErrorKind::Interrupted, join_err));
-                    Err(err)
-                } else {
-                    panic!("background task failed: {:?}", join_err)
-                }
+                // The tokio task failed, pass as io::Error in a Box
+                let err: BoxError = Box::new(io::Error::from(join_err));
+                Err(err)
             }
         });
 
