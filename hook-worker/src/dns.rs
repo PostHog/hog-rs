@@ -6,15 +6,15 @@ use futures::FutureExt;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use tokio::task::spawn_blocking;
 
-pub struct NoPublicIPError;
+pub struct NoPublicIPv4Error;
 
-impl std::error::Error for NoPublicIPError {}
-impl fmt::Display for NoPublicIPError {
+impl std::error::Error for NoPublicIPv4Error {}
+impl fmt::Display for NoPublicIPv4Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "No public IPv4 found for specified host")
     }
 }
-impl fmt::Debug for NoPublicIPError {
+impl fmt::Debug for NoPublicIPv4Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "No public IPv4 found for specified host")
     }
@@ -59,7 +59,7 @@ impl Resolve for PublicIPv4Resolver {
                 let filtered_addr: Vec<SocketAddr> = all_addrs.filter(is_global_ipv4).collect();
                 if filtered_addr.is_empty() {
                     // No public IPs found, error out with PermissionDenied
-                    let err: BoxError = Box::new(NoPublicIPError);
+                    let err: BoxError = Box::new(NoPublicIPv4Error);
                     Err(err)
                 } else {
                     // Pass remaining IPs in a boxed iterator for request to use.
@@ -91,7 +91,7 @@ impl Resolve for PublicIPv4Resolver {
 
 #[cfg(test)]
 mod tests {
-    use crate::dns::{NoPublicIPError, PublicIPv4Resolver};
+    use crate::dns::{NoPublicIPv4Error, PublicIPv4Resolver};
     use reqwest::dns::{Name, Resolve};
     use std::str::FromStr;
 
@@ -113,7 +113,7 @@ mod tests {
             .await
         {
             Ok(_) => panic!("should have failed"),
-            Err(err) => assert!(err.downcast_ref::<NoPublicIPError>().is_some()),
+            Err(err) => assert!(err.downcast_ref::<NoPublicIPv4Error>().is_some()),
         }
     }
 
@@ -122,7 +122,7 @@ mod tests {
         let resolver: PublicIPv4Resolver = PublicIPv4Resolver {};
         match resolver.resolve(Name::from_str("localhost").unwrap()).await {
             Ok(_) => panic!("should have failed"),
-            Err(err) => assert!(err.is::<NoPublicIPError>()),
+            Err(err) => assert!(err.is::<NoPublicIPv4Error>()),
         }
     }
 
