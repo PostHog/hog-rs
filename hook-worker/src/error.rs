@@ -1,6 +1,8 @@
+use std::error::Error;
 use std::fmt;
 use std::time;
 
+use crate::dns::NoPublicIPError;
 use hook_common::{pgqueue, webhook::WebhookJobError};
 use thiserror::Error;
 
@@ -64,7 +66,11 @@ impl fmt::Display for WebhookRequestError {
                     Some(m) => m.to_string(),
                     None => "No response from the server".to_string(),
                 };
-                writeln!(f, "{}", error)?;
+                if is_error_source::<NoPublicIPError>(error) {
+                    writeln!(f, "{}: {}", error ,NoPublicIPError)?;
+                } else {
+                    writeln!(f, "{}", error)?;
+                }
                 write!(f, "{}", response_message)?;
 
                 Ok(())
@@ -131,4 +137,15 @@ pub enum WorkerError {
     QueueParseError(#[from] pgqueue::ParseError),
     #[error("timed out while waiting for jobs to be available")]
     TimeoutError,
+}
+
+/// Check the error and it's sources (recursively) to return true if an error of the given type is found.
+pub fn is_error_source<T: Error + 'static>(err: &(dyn std::error::Error + 'static)) -> bool {
+    if err.downcast_ref::<T>().is_some() {
+        return true;
+    }
+    match err.source() {
+        None => false,
+        Some(source) => is_error_source::<T>(source),
+    }
 }

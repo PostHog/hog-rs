@@ -1,10 +1,24 @@
 use std::error::Error as StdError;
-use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
+use std::{fmt, io};
 
 use futures::FutureExt;
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use tokio::task::spawn_blocking;
+
+pub struct NoPublicIPError;
+
+impl std::error::Error for NoPublicIPError {}
+impl fmt::Display for NoPublicIPError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "No public IPv4 found for specified host")
+    }
+}
+impl fmt::Debug for NoPublicIPError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "No public IPv4 found for specified host")
+    }
+}
 
 /// Internal reqwest type, copied here as part of Resolving
 pub(crate) type BoxError = Box<dyn StdError + Send + Sync>;
@@ -40,10 +54,18 @@ impl Resolve for PublicIPv4Resolver {
         // Execute the blocking call in a separate worker thread then process its result asynchronously.
         // spawn_blocking returns a JoinHandle that implements Future<Result<(closure result), JoinError>>.
         let future_result = spawn_blocking(resolve_host).map(|result| match result {
-            Ok(Ok(addr)) => {
-                // Resolution succeeded, pass the IPs in a Box after filtering
-                let addrs: Addrs = Box::new(addr.filter(is_global_ipv4));
-                Ok(addrs)
+            Ok(Ok(all_addrs)) => {
+                // Resolution succeeded, filter the results
+                let filtered_addr: Vec<SocketAddr> = all_addrs.filter(is_global_ipv4).collect();
+                if filtered_addr.is_empty() {
+                    // No public IPs found, error out with PermissionDenied
+                    let err: BoxError = Box::new(NoPublicIPError);
+                    Err(err)
+                } else {
+                    // Pass remaining IPs in a boxed iterator for request to use.
+                    let addrs: Addrs = Box::new(filtered_addr.into_iter());
+                    Ok(addrs)
+                }
             }
             Ok(Err(err)) => {
                 // Resolution failed, pass error through in a Box
