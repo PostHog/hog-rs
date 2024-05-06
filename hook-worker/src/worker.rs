@@ -577,8 +577,8 @@ mod tests {
             webhook_job_parameters.clone(),
             webhook_job_metadata,
         )
-            .await
-            .expect("failed to enqueue job");
+        .await
+        .expect("failed to enqueue job");
         let worker = WebhookWorker::new(
             &worker_id,
             &queue,

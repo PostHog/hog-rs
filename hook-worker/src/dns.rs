@@ -88,3 +88,53 @@ impl Resolve for PublicIPv4Resolver {
         Box::pin(future_result)
     }
 }
+
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[tokio::test]
+    async fn it_resolves_google_com() {
+        let resolver: PublicIPv4Resolver = PublicIPv4Resolver {};
+        let addrs = resolver
+            .resolve(Name::from_str("google.com").unwrap())
+            .await
+            .expect("lookup has failed");
+        assert!(addrs.count() > 0, "empty address list")
+    }
+
+    #[tokio::test]
+    async fn it_denies_ipv6_google_com() {
+        let resolver: PublicIPv4Resolver = PublicIPv4Resolver {};
+        match resolver
+            .resolve(Name::from_str("ipv6.google.com").unwrap())
+            .await
+        {
+            Ok(_) => panic!("should have failed"),
+            Err(err) => assert!(err.downcast_ref::<NoPublicIPError>().is_some()),
+        }
+    }
+
+    #[tokio::test]
+    async fn it_denies_localhost() {
+        let resolver: PublicIPv4Resolver = PublicIPv4Resolver {};
+        match resolver.resolve(Name::from_str("localhost").unwrap()).await {
+            Ok(_) => panic!("should have failed"),
+            Err(err) => assert!(err.is::<NoPublicIPError>()),
+        }
+    }
+
+    #[tokio::test]
+    async fn it_propagates_unknown_domain() {
+        let resolver: PublicIPv4Resolver = PublicIPv4Resolver {};
+        match resolver
+            .resolve(Name::from_str("invalid.domain.unknown").unwrap())
+            .await
+        {
+            Ok(_) => panic!("should have failed"),
+            Err(err) => assert!(err
+                .to_string()
+                .contains("failed to lookup address information")),
+        }
+    }
+}

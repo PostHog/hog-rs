@@ -67,7 +67,7 @@ impl fmt::Display for WebhookRequestError {
                     None => "No response from the server".to_string(),
                 };
                 if is_error_source::<NoPublicIPError>(error) {
-                    writeln!(f, "{}: {}", error ,NoPublicIPError)?;
+                    writeln!(f, "{}: {}", error, NoPublicIPError)?;
                 } else {
                     writeln!(f, "{}", error)?;
                 }
@@ -140,8 +140,9 @@ pub enum WorkerError {
 }
 
 /// Check the error and it's sources (recursively) to return true if an error of the given type is found.
+/// TODO: use Error::sources() when stable
 pub fn is_error_source<T: Error + 'static>(err: &(dyn std::error::Error + 'static)) -> bool {
-    if err.downcast_ref::<T>().is_some() {
+    if err.is::<NoPublicIPError>() {
         return true;
     }
     match err.source() {
