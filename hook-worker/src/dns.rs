@@ -108,7 +108,7 @@ mod tests {
             .await
         {
             Ok(_) => panic!("should have failed"),
-            Err(err) => assert!(err.downcast_ref::<NoPublicIPv4Error>().is_some()),
+            Err(err) => assert!(err.is::<NoPublicIPv4Error>()),
         }
     }
 
@@ -122,16 +122,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn it_propagates_unknown_domain() {
+    async fn it_bubbles_up_resolution_error() {
         let resolver: PublicIPv4Resolver = PublicIPv4Resolver {};
         match resolver
             .resolve(Name::from_str("invalid.domain.unknown").unwrap())
             .await
         {
             Ok(_) => panic!("should have failed"),
-            Err(err) => assert!(err
-                .to_string()
-                .contains("failed to lookup address information")),
+            Err(err) => {
+                assert!(!err.is::<NoPublicIPv4Error>());
+                assert!(err
+                    .to_string()
+                    .contains("failed to lookup address information"))
+            }
         }
     }
 }
