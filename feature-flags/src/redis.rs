@@ -43,7 +43,6 @@ impl Client for RedisClient {
 }
 
 // TODO: Find if there's a better way around this.
-// mockall got really annoying with async and results so I'm just gonna do my own
 #[derive(Clone)]
 pub struct MockRedisClient {
     zrangebyscore_ret: Vec<String>,

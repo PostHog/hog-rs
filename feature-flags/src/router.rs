@@ -13,14 +13,6 @@ pub struct State {
 pub fn router<R: Client + Send + Sync + 'static>(redis: Arc<R>) -> Router {
     let state = State { redis };
 
-    // // Very permissive CORS policy, as old SDK versions
-    // // and reverse proxies might send funky headers.
-    // let cors = CorsLayer::new()
-    //     .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-    //     .allow_headers(AllowHeaders::mirror_request())
-    //     .allow_credentials(true)
-    //     .allow_origin(AllowOrigin::mirror_request());
-
     Router::new()
         .route("/flags", post(v0_endpoint::flags).get(v0_endpoint::flags))
         .with_state(state)
