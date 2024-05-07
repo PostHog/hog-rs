@@ -7,18 +7,19 @@ use futures::future::join_all;
 use health::HealthHandle;
 use hook_common::pgqueue::PgTransactionBatch;
 use hook_common::{
-    pgqueue::{
-        DatabaseError, Job, PgQueue, PgQueueJob, PgTransactionJob, RetryError, RetryInvalidError,
-    },
+    pgqueue::{Job, PgQueue, PgQueueJob, PgTransactionJob, RetryError, RetryInvalidError},
     retry::RetryPolicy,
     webhook::{HttpMethod, WebhookJobError, WebhookJobMetadata, WebhookJobParameters},
 };
 use http::StatusCode;
-use reqwest::header;
+use reqwest::{header, Client};
 use tokio::sync;
 use tracing::error;
 
-use crate::error::{WebhookError, WebhookParseError, WebhookRequestError, WorkerError};
+use crate::dns::{NoPublicIPv4Error, PublicIPv4Resolver};
+use crate::error::{
+    is_error_source, WebhookError, WebhookParseError, WebhookRequestError, WorkerError,
+};
 use crate::util::first_n_bytes_of_response;
 
 /// A WebhookJob is any `PgQueueJob` with `WebhookJobParameters` and `WebhookJobMetadata`.
@@ -74,6 +75,25 @@ pub struct WebhookWorker<'p> {
     liveness: HealthHandle,
 }
 
+pub fn build_http_client(
+    request_timeout: time::Duration,
+    allow_internal_ips: bool,
+) -> reqwest::Result<Client> {
+    let mut headers = header::HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        header::HeaderValue::from_static("application/json"),
+    );
+    let mut client_builder = reqwest::Client::builder()
+        .default_headers(headers)
+        .user_agent("PostHog Webhook Worker")
+        .timeout(request_timeout);
+    if !allow_internal_ips {
+        client_builder = client_builder.dns_resolver(Arc::new(PublicIPv4Resolver {}))
+    }
+    client_builder.build()
+}
+
 impl<'p> WebhookWorker<'p> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -84,19 +104,10 @@ impl<'p> WebhookWorker<'p> {
         request_timeout: time::Duration,
         max_concurrent_jobs: usize,
         retry_policy: RetryPolicy,
+        allow_internal_ips: bool,
         liveness: HealthHandle,
     ) -> Self {
-        let mut headers = header::HeaderMap::new();
-        headers.insert(
-            header::CONTENT_TYPE,
-            header::HeaderValue::from_static("application/json"),
-        );
-
-        let client = reqwest::Client::builder()
-            .default_headers(headers)
-            .user_agent("PostHog Webhook Worker")
-            .timeout(request_timeout)
-            .build()
+        let client = build_http_client(request_timeout, allow_internal_ips)
             .expect("failed to construct reqwest client for webhook worker");
 
         Self {
@@ -390,10 +401,19 @@ async fn send_webhook(
         .body(body)
         .send()
         .await
-        .map_err(|e| WebhookRequestError::RetryableRequestError {
-            error: e,
-            response: None,
-            retry_after: None,
+        .map_err(|e| {
+            if is_error_source::<NoPublicIPv4Error>(&e) {
+                WebhookRequestError::NonRetryableRetryableRequestError {
+                    error: e,
+                    response: None,
+                }
+            } else {
+                WebhookRequestError::RetryableRequestError {
+                    error: e,
+                    response: None,
+                    retry_after: None,
+                }
+            }
         })?;
 
     let retry_after = parse_retry_after_header(response.headers());
@@ -467,25 +487,27 @@ fn parse_retry_after_header(header_map: &reqwest::header::HeaderMap) -> Option<t
     None
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
     // Note we are ignoring some warnings in this module.
     // This is due to a long-standing cargo bug that reports imports and helper functions as unused.
     // See: https://github.com/rust-lang/rust/issues/46379.
-    #[allow(unused_imports)]
     use health::HealthRegistry;
-    #[allow(unused_imports)]
-    use hook_common::pgqueue::{JobStatus, NewJob};
-    #[allow(unused_imports)]
+    use hook_common::pgqueue::{DatabaseError, NewJob};
     use sqlx::PgPool;
 
     /// Use process id as a worker id for tests.
-    #[allow(dead_code)]
     fn worker_id() -> String {
         std::process::id().to_string()
     }
 
-    #[allow(dead_code)]
+    /// Get a request client or panic
+    fn localhost_client() -> Client {
+        build_http_client(Duration::from_secs(1), true).expect("failed to create client")
+    }
+
     async fn enqueue_job(
         queue: &PgQueue,
         max_attempts: i32,
@@ -569,6 +591,7 @@ mod tests {
             time::Duration::from_millis(5000),
             10,
             RetryPolicy::default(),
+            false,
             liveness,
         );
 
@@ -594,15 +617,14 @@ mod tests {
         assert!(registry.get_status().healthy)
     }
 
-    #[sqlx::test(migrations = "../migrations")]
-    async fn test_send_webhook(_pg: PgPool) {
+    #[tokio::test]
+    async fn test_send_webhook() {
         let method = HttpMethod::POST;
         let url = "http://localhost:18081/echo";
         let headers = collections::HashMap::new();
         let body = "a very relevant request body";
-        let client = reqwest::Client::new();
 
-        let response = send_webhook(client, &method, url, &headers, body.to_owned())
+        let response = send_webhook(localhost_client(), &method, url, &headers, body.to_owned())
             .await
             .expect("send_webhook failed");
 
@@ -613,15 +635,14 @@ mod tests {
         );
     }
 
-    #[sqlx::test(migrations = "../migrations")]
-    async fn test_error_message_contains_response_body(_pg: PgPool) {
+    #[tokio::test]
+    async fn test_error_message_contains_response_body() {
         let method = HttpMethod::POST;
         let url = "http://localhost:18081/fail";
         let headers = collections::HashMap::new();
         let body = "this is an error message";
-        let client = reqwest::Client::new();
 
-        let err = send_webhook(client, &method, url, &headers, body.to_owned())
+        let err = send_webhook(localhost_client(), &method, url, &headers, body.to_owned())
             .await
             .err()
             .expect("request didn't fail when it should have failed");
@@ -638,17 +659,16 @@ mod tests {
         }
     }
 
-    #[sqlx::test(migrations = "../migrations")]
-    async fn test_error_message_contains_up_to_n_bytes_of_response_body(_pg: PgPool) {
+    #[tokio::test]
+    async fn test_error_message_contains_up_to_n_bytes_of_response_body() {
         let method = HttpMethod::POST;
         let url = "http://localhost:18081/fail";
         let headers = collections::HashMap::new();
         // This is double the current hardcoded amount of bytes.
         // TODO: Make this configurable and change it here too.
         let body = (0..20 * 1024).map(|_| "a").collect::<Vec<_>>().concat();
-        let client = reqwest::Client::new();
 
-        let err = send_webhook(client, &method, url, &headers, body.to_owned())
+        let err = send_webhook(localhost_client(), &method, url, &headers, body.to_owned())
             .await
             .err()
             .expect("request didn't fail when it should have failed");
@@ -664,6 +684,34 @@ mod tests {
             assert!(request_error.to_string().contains(
                 "HTTP status client error (400 Bad Request) for url (http://localhost:18081/fail)"
             ));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_private_ips_denied() {
+        let method = HttpMethod::POST;
+        let url = "http://localhost:18081/echo";
+        let headers = collections::HashMap::new();
+        let body = "a very relevant request body";
+        let filtering_client =
+            build_http_client(Duration::from_secs(1), false).expect("failed to create client");
+
+        let err = send_webhook(filtering_client, &method, url, &headers, body.to_owned())
+            .await
+            .err()
+            .expect("request didn't fail when it should have failed");
+
+        assert!(matches!(err, WebhookError::Request(..)));
+        if let WebhookError::Request(request_error) = err {
+            assert_eq!(request_error.status(), None);
+            assert!(request_error
+                .to_string()
+                .contains("No public IPv4 found for specified host"));
+            if let WebhookRequestError::RetryableRequestError { .. } = request_error {
+                panic!("error should not be retryable")
+            }
+        } else {
+            panic!("unexpected error type {:?}", err)
         }
     }
 }
