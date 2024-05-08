@@ -33,7 +33,7 @@ use crate::{
 )]
 #[debug_handler]
 pub async fn flags(
-    _state: State<router::State>,
+    state: State<router::State>,
     InsecureClientIp(ip): InsecureClientIp,
     meta: Query<FlagsQueryParams>,
     headers: HeaderMap,
@@ -59,19 +59,19 @@ pub async fn flags(
         .get("content-type")
         .map_or("", |v| v.to_str().unwrap_or(""))
     {
-        "application/x-www-form-urlencoded" => {
-            return Err(FlagError::RequestDecodingError(String::from(
-                "invalid form data",
-            )));
+        "application/json" => {
+            tracing::Span::current().record("content_type", "application/json");
+            FlagRequest::from_bytes(body)
         }
         ct => {
-            tracing::Span::current().record("content_type", ct);
-
-            FlagRequest::from_bytes(body)
+            return Err(FlagError::RequestDecodingError(format!(
+                "unsupported content type: {}",
+                ct
+            )));
         }
     }?;
 
-    let token = request.extract_and_verify_token()?;
+    let token = request.extract_and_verify_token(state.redis.clone()).await?;
 
     tracing::Span::current().record("token", &token);
 

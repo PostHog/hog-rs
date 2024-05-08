@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::instrument;
 
-use crate::api::FlagError;
+use crate::{api::FlagError, redis::Client, team::Team};
 
 #[derive(Deserialize, Default)]
 pub struct FlagsQueryParams {
@@ -54,15 +54,18 @@ impl FlagRequest {
         Ok(serde_json::from_str::<FlagRequest>(&payload)?)
     }
 
-    pub fn extract_and_verify_token(&self) -> Result<String, FlagError> {
+    pub async fn extract_and_verify_token(&self, redis_client: Arc<dyn Client + Send + Sync>) -> Result<String, FlagError> {
         let token = match self {
             FlagRequest {
                 token: Some(token), ..
             } => token.to_string(),
             _ => return Err(FlagError::NoTokenError),
         };
-        // TODO: Get tokens from redis, confirm this one is valid
-        // validate_token(&token)?;
+        
+        let team = Team::from_redis(redis_client, token.clone()).await?;
+
+        // TODO: Remove this, is useless, doing just for now because 
+        tracing::Span::current().record("team_id", &team.id);
         Ok(token)
     }
 }

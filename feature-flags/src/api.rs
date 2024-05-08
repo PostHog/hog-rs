@@ -25,6 +25,9 @@ pub enum FlagError {
     #[error("failed to parse request: {0}")]
     RequestParsingError(#[from] serde_json::Error),
 
+    #[error("failed to parse redis data: {0}")]
+    DataParsingError(#[from] serde_pickle::Error),
+
     #[error("Empty distinct_id in request")]
     EmptyDistinctId,
     #[error("No distinct_id in request")]
@@ -44,6 +47,7 @@ impl IntoResponse for FlagError {
         match self {
             FlagError::RequestDecodingError(_)
             | FlagError::RequestParsingError(_)
+            | FlagError::DataParsingError(_)
             | FlagError::EmptyDistinctId
             | FlagError::MissingDistinctId => (StatusCode::BAD_REQUEST, self.to_string()),
 
