@@ -75,7 +75,10 @@ pub async fn flags(
         .extract_and_verify_token(state.redis.clone())
         .await?;
 
+    let distinct_id = request.extract_distinct_id()?;
+
     tracing::Span::current().record("token", &token);
+    tracing::Span::current().record("distinct_id", &distinct_id);
 
     tracing::debug!("request: {:?}", request);
 

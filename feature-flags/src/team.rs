@@ -1,26 +1,16 @@
-use std::sync::Arc;
-
-use crate::{api::FlagError, redis::Client};
-
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tracing::instrument;
 
-// TRICKY: I'm still not sure where the :1: is coming from.
-// The Django prefix is `posthog` only.
-// It's from here: https://docs.djangoproject.com/en/4.2/topics/cache/#cache-versioning
-// F&!£%% on the bright side we don't use this functionality yet.
-// Will rely on integration tests to catch this.
+use crate::{
+    api::FlagError,
+    redis::{Client, CustomRedisError},
+};
+
+// TRICKY: This cache data is coming from django-redis. If it ever goes out of sync, we'll bork.
+// TODO: Add integration tests across repos to ensure this doesn't happen.
 pub const TEAM_TOKEN_CACHE_PREFIX: &str = "posthog:1:team_token:";
 
-// TODO: Check what happens if json has extra stuff, does serde ignore it? Yes
-// Make sure we don't serialize and store team data in redis. Let main decide endpoint control this...
-// and track misses. Revisit if this becomes an issue.
-// because otherwise very annoying to keep this in sync with main django which has a lot of extra fields we need here.
-// will lead to inconsistent behaviour.
-// This is turning out to be very annoying, because we have django key prefixes to be mindful of as well.
-// Wonder if it would be better to make these caches independent? This generates that new problem of CRUD happening in Django,
-// which needs to update this cache immediately, so they can't really ever be independent.
-// True for both team cache and flags cache. Hmm. Just I guess need to add tests around the key prefixes...
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Team {
     pub id: i64,
@@ -40,16 +30,21 @@ impl Team {
         let serialized_team = client
             .get(format!("{TEAM_TOKEN_CACHE_PREFIX}{}", token))
             .await
-            .map_err(|e| {
-                tracing::error!("failed to fetch data: {}", e);
-                // TODO: Can be other errors if serde_pickle destructuring fails?
-                FlagError::TokenValidationError
+            .map_err(|e| match e {
+                CustomRedisError::NotFound => FlagError::TokenValidationError,
+                CustomRedisError::PickleError(_) => {
+                    tracing::error!("failed to fetch data: {}", e);
+                    FlagError::DataParsingError
+                }
+                _ => {
+                    tracing::error!("Unknown redis error: {}", e);
+                    FlagError::RedisUnavailable
+                }
             })?;
 
         let team: Team = serde_json::from_str(&serialized_team).map_err(|e| {
             tracing::error!("failed to parse data to team: {}", e);
-            // TODO: Internal error, shouldn't send back to client
-            FlagError::RequestParsingError(e)
+            FlagError::DataParsingError
         })?;
 
         Ok(team)
@@ -58,8 +53,14 @@ impl Team {
 
 #[cfg(test)]
 mod tests {
+    use rand::Rng;
+    use redis::AsyncCommands;
+
     use super::*;
-    use crate::test_utils::{insert_new_team_in_redis, setup_redis_client};
+    use crate::{
+        team,
+        test_utils::{insert_new_team_in_redis, random_string, setup_redis_client},
+    };
 
     #[tokio::test]
     async fn test_fetch_team_from_redis() {
@@ -80,13 +81,59 @@ mod tests {
     async fn test_fetch_invalid_team_from_redis() {
         let client = setup_redis_client(None);
 
-        // TODO: It's not ideal that this can fail on random errors like connection refused.
-        // Is there a way to be more specific throughout this code?
-        // Or maybe I shouldn't be mapping conn refused to token validation error, and instead handling it as a
-        // top level 500 error instead of 400 right now.
         match Team::from_redis(client.clone(), "banana".to_string()).await {
             Err(FlagError::TokenValidationError) => (),
             _ => panic!("Expected TokenValidationError"),
+        };
+    }
+
+    #[tokio::test]
+    async fn test_cant_connect_to_redis_error_is_not_token_validation_error() {
+        let client = setup_redis_client(Some("redis://localhost:1111/".to_string()));
+
+        match Team::from_redis(client.clone(), "banana".to_string()).await {
+            Err(FlagError::RedisUnavailable) => (),
+            _ => panic!("Expected RedisUnavailable"),
+        };
+    }
+
+    #[tokio::test]
+    async fn test_corrupted_data_in_redis_is_handled() {
+        // TODO: Extend this test with fallback to pg
+        let id = rand::thread_rng().gen_range(0..10_000_000);
+        let token = random_string("phc_", 12);
+        let team = Team {
+            id,
+            name: "team".to_string(),
+            api_token: token,
+        };
+        let serialized_team = serde_json::to_string(&team).expect("Failed to serialise team");
+
+        // manually insert non-pickled data in redis
+        let client =
+            redis::Client::open("redis://localhost:6379/").expect("Failed to create redis client");
+        let mut conn = client
+            .get_async_connection()
+            .await
+            .expect("Failed to get redis connection");
+        conn.set::<String, String, ()>(
+            format!(
+                "{}{}",
+                team::TEAM_TOKEN_CACHE_PREFIX,
+                team.api_token.clone()
+            ),
+            serialized_team,
+        )
+        .await
+        .expect("Failed to write data to redis");
+
+        // now get client connection for data
+        let client = setup_redis_client(None);
+
+        match Team::from_redis(client.clone(), team.api_token.clone()).await {
+            Err(FlagError::DataParsingError) => (),
+            Err(other) => panic!("Expected DataParsingError, got {:?}", other),
+            Ok(_) => panic!("Expected DataParsingError"),
         };
     }
 }

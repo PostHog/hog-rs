@@ -20,7 +20,7 @@ pub async fn insert_new_team_in_redis(client: Arc<RedisClient>) -> Result<Team, 
     let id = rand::thread_rng().gen_range(0..10_000_000);
     let token = random_string("phc_", 12);
     let team = Team {
-        id: id,
+        id,
         name: "team".to_string(),
         api_token: token,
     };

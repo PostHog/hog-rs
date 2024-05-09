@@ -25,9 +25,6 @@ pub enum FlagError {
     #[error("failed to parse request: {0}")]
     RequestParsingError(#[from] serde_json::Error),
 
-    #[error("failed to parse redis data: {0}")]
-    DataParsingError(#[from] serde_pickle::Error),
-
     #[error("Empty distinct_id in request")]
     EmptyDistinctId,
     #[error("No distinct_id in request")]
@@ -40,6 +37,11 @@ pub enum FlagError {
 
     #[error("rate limited")]
     RateLimited,
+
+    #[error("failed to parse redis cache data")]
+    DataParsingError,
+    #[error("redis unavailable")]
+    RedisUnavailable,
 }
 
 impl IntoResponse for FlagError {
@@ -47,7 +49,6 @@ impl IntoResponse for FlagError {
         match self {
             FlagError::RequestDecodingError(_)
             | FlagError::RequestParsingError(_)
-            | FlagError::DataParsingError(_)
             | FlagError::EmptyDistinctId
             | FlagError::MissingDistinctId => (StatusCode::BAD_REQUEST, self.to_string()),
 
@@ -56,6 +57,10 @@ impl IntoResponse for FlagError {
             }
 
             FlagError::RateLimited => (StatusCode::TOO_MANY_REQUESTS, self.to_string()),
+
+            FlagError::DataParsingError | FlagError::RedisUnavailable => {
+                (StatusCode::SERVICE_UNAVAILABLE, self.to_string())
+            }
         }
         .into_response()
     }
