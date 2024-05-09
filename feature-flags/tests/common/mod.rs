@@ -49,7 +49,10 @@ impl ServerHandle {
             .expect("failed to send request")
     }
 
-    pub async fn send_invalid_header_for_flags_request<T: Into<reqwest::Body>>(&self, body: T) -> reqwest::Response {
+    pub async fn send_invalid_header_for_flags_request<T: Into<reqwest::Body>>(
+        &self,
+        body: T,
+    ) -> reqwest::Response {
         let client = reqwest::Client::new();
         client
             .post(format!("http://{:?}/flags", self.addr))

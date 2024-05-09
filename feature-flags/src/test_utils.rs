@@ -1,7 +1,10 @@
-use std::sync::Arc;
 use anyhow::Error;
+use std::sync::Arc;
 
-use crate::{redis::{Client, RedisClient}, team::{self, Team}};
+use crate::{
+    redis::{Client, RedisClient},
+    team::{self, Team},
+};
 use rand::{distributions::Alphanumeric, Rng};
 
 pub fn random_string(prefix: &str, length: usize) -> String {
@@ -25,7 +28,11 @@ pub async fn insert_new_team_in_redis(client: Arc<RedisClient>) -> Result<Team, 
     let serialized_team = serde_json::to_string(&team)?;
     client
         .set(
-            format!("{}{}", team::TEAM_TOKEN_CACHE_PREFIX, team.api_token.clone()),
+            format!(
+                "{}{}",
+                team::TEAM_TOKEN_CACHE_PREFIX,
+                team.api_token.clone()
+            ),
             serialized_team,
         )
         .await?;

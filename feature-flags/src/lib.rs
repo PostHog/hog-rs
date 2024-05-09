@@ -3,9 +3,9 @@ pub mod config;
 pub mod redis;
 pub mod router;
 pub mod server;
+pub mod team;
 pub mod v0_endpoint;
 pub mod v0_request;
-pub mod team;
 
 // Test modules don't need to be compiled with main binary
 // #[cfg(test)]

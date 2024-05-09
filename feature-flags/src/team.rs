@@ -5,7 +5,6 @@ use crate::{api::FlagError, redis::Client};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
-
 // TRICKY: I'm still not sure where the :1: is coming from.
 // The Django prefix is `posthog` only.
 // It's from here: https://docs.djangoproject.com/en/4.2/topics/cache/#cache-versioning
@@ -31,26 +30,22 @@ pub struct Team {
 
 impl Team {
     /// Validates a token, and returns a team if it exists.
-    /// 
-    
+
     #[instrument(skip_all)]
     pub async fn from_redis(
         client: Arc<dyn Client + Send + Sync>,
         token: String,
     ) -> Result<Team, FlagError> {
-
         // TODO: Instead of failing here, i.e. if not in redis, fallback to pg
         let serialized_team = client
-            .get(
-                format!("{TEAM_TOKEN_CACHE_PREFIX}{}", token)
-            )
+            .get(format!("{TEAM_TOKEN_CACHE_PREFIX}{}", token))
             .await
             .map_err(|e| {
                 tracing::error!("failed to fetch data: {}", e);
                 // TODO: Can be other errors if serde_pickle destructuring fails?
                 FlagError::TokenValidationError
             })?;
-        
+
         let team: Team = serde_json::from_str(&serialized_team).map_err(|e| {
             tracing::error!("failed to parse data to team: {}", e);
             // TODO: Internal error, shouldn't send back to client
@@ -63,9 +58,8 @@ impl Team {
 
 #[cfg(test)]
 mod tests {
-    use crate::test_utils::{insert_new_team_in_redis, setup_redis_client};
     use super::*;
-
+    use crate::test_utils::{insert_new_team_in_redis, setup_redis_client};
 
     #[tokio::test]
     async fn test_fetch_team_from_redis() {
@@ -75,13 +69,11 @@ mod tests {
 
         let target_token = team.api_token;
 
-        let team_from_redis = Team::from_redis(client.clone(), target_token.clone()).await.unwrap();
-        assert_eq!(
-            team_from_redis.api_token, target_token
-        );
-        assert_eq!(
-            team_from_redis.id, team.id
-        );
+        let team_from_redis = Team::from_redis(client.clone(), target_token.clone())
+            .await
+            .unwrap();
+        assert_eq!(team_from_redis.api_token, target_token);
+        assert_eq!(team_from_redis.id, team.id);
     }
 
     #[tokio::test]

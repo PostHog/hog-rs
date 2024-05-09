@@ -49,7 +49,8 @@ impl Client for RedisClient {
 
         let results = conn.get(k.clone());
         // TODO: Is this safe? Should we be doing something else for error handling here?
-        let fut: Result<Vec<u8>, RedisError> = timeout(Duration::from_secs(REDIS_TIMEOUT_MILLISECS), results).await?;
+        let fut: Result<Vec<u8>, RedisError> =
+            timeout(Duration::from_secs(REDIS_TIMEOUT_MILLISECS), results).await?;
 
         // TRICKY: We serialise data to json, then django pickles it.
         // Here we deserialize the bytes using serde_pickle, to get the json string.

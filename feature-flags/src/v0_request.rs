@@ -54,17 +54,20 @@ impl FlagRequest {
         Ok(serde_json::from_str::<FlagRequest>(&payload)?)
     }
 
-    pub async fn extract_and_verify_token(&self, redis_client: Arc<dyn Client + Send + Sync>) -> Result<String, FlagError> {
+    pub async fn extract_and_verify_token(
+        &self,
+        redis_client: Arc<dyn Client + Send + Sync>,
+    ) -> Result<String, FlagError> {
         let token = match self {
             FlagRequest {
                 token: Some(token), ..
             } => token.to_string(),
             _ => return Err(FlagError::NoTokenError),
         };
-        
+
         let team = Team::from_redis(redis_client, token.clone()).await?;
 
-        // TODO: Remove this, is useless, doing just for now because 
+        // TODO: Remove this, is useless, doing just for now because
         tracing::Span::current().record("team_id", &team.id);
         Ok(token)
     }

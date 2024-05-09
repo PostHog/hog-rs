@@ -71,7 +71,9 @@ pub async fn flags(
         }
     }?;
 
-    let token = request.extract_and_verify_token(state.redis.clone()).await?;
+    let token = request
+        .extract_and_verify_token(state.redis.clone())
+        .await?;
 
     tracing::Span::current().record("token", &token);
 

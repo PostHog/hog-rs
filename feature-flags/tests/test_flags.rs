@@ -48,7 +48,6 @@ async fn it_sends_flag_request() -> Result<()> {
     Ok(())
 }
 
-
 #[tokio::test]
 async fn it_rejects_invalid_headers_flag_request() -> Result<()> {
     let config = DEFAULT_CONFIG.clone();
@@ -66,14 +65,19 @@ async fn it_rejects_invalid_headers_flag_request() -> Result<()> {
         "distinct_id": distinct_id,
         "groups": {"group1": "group1"}
     });
-    let res = server.send_invalid_header_for_flags_request(payload.to_string()).await;
+    let res = server
+        .send_invalid_header_for_flags_request(payload.to_string())
+        .await;
     assert_eq!(StatusCode::BAD_REQUEST, res.status());
 
     // We don't want to deserialize the data into a flagResponse struct here,
     // because we want to assert the shape of the raw json data.
     let response_text = res.text().await?;
 
-    assert_eq!(response_text, "failed to decode request: unsupported content type: xyz");
+    assert_eq!(
+        response_text,
+        "failed to decode request: unsupported content type: xyz"
+    );
 
     Ok(())
 }
