@@ -11,7 +11,7 @@ use tracing::instrument;
 // It's from here: https://docs.djangoproject.com/en/4.2/topics/cache/#cache-versioning
 // F&!£%% on the bright side we don't use this functionality yet.
 // Will rely on integration tests to catch this.
-const TEAM_TOKEN_CACHE_PREFIX: &str = "posthog:1:team_token:";
+pub const TEAM_TOKEN_CACHE_PREFIX: &str = "posthog:1:team_token:";
 
 // TODO: Check what happens if json has extra stuff, does serde ignore it? Yes
 // Make sure we don't serialize and store team data in redis. Let main decide endpoint control this...
@@ -63,48 +63,13 @@ impl Team {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-    use anyhow::Error;
-
-    use crate::redis::RedisClient;
-    use rand::{distributions::Alphanumeric, Rng};
-
+    use crate::test_utils::{insert_new_team_in_redis, setup_redis_client};
     use super::*;
 
-    fn random_string(prefix: &str, length: usize) -> String {
-        let suffix: String = rand::thread_rng()
-            .sample_iter(Alphanumeric)
-            .take(length)
-            .map(char::from)
-            .collect();
-        format!("{}{}", prefix, suffix)
-    }
-
-    async fn insert_new_team_in_redis(client: Arc<RedisClient>) -> Result<Team, Error> {
-        let id = rand::thread_rng().gen_range(0..10_000_000);
-        let token = random_string("phc_", 12);
-        let team = Team {
-            id: id,
-            name: "team".to_string(),
-            api_token: token,
-        };
-
-        let serialized_team = serde_json::to_string(&team)?;
-        client
-            .set(
-                format!("{TEAM_TOKEN_CACHE_PREFIX}{}", team.api_token.clone()),
-                serialized_team,
-            )
-            .await?;
-
-        Ok(team)
-    }
 
     #[tokio::test]
     async fn test_fetch_team_from_redis() {
-        let client = RedisClient::new("redis://localhost:6379/".to_string())
-            .expect("Failed to create redis client");
-        let client = Arc::new(client);
+        let client = setup_redis_client(None);
 
         let team = insert_new_team_in_redis(client.clone()).await.unwrap();
 
@@ -121,10 +86,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_invalid_team_from_redis() {
-        let client = RedisClient::new("redis://localhost:6379/".to_string())
-            .expect("Failed to create redis client");
-        let client = Arc::new(client);
+        let client = setup_redis_client(None);
 
+        // TODO: It's not ideal that this can fail on random errors like connection refused.
+        // Is there a way to be more specific throughout this code?
+        // Or maybe I shouldn't be mapping conn refused to token validation error, and instead handling it as a
+        // top level 500 error instead of 400 right now.
         match Team::from_redis(client.clone(), "banana".to_string()).await {
             Err(FlagError::TokenValidationError) => (),
             _ => panic!("Expected TokenValidationError"),
