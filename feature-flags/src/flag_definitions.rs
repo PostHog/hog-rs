@@ -18,7 +18,7 @@ pub enum GroupTypeIndex {
     
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum OperatorType {
     #[serde(rename = "exact")]
     Exact,
@@ -52,7 +52,7 @@ pub enum OperatorType {
     IsDateBefore,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PropertyFilter {
     pub key: String,
     pub value: serde_json::Value,
@@ -62,21 +62,21 @@ pub struct PropertyFilter {
     pub group_type_index: Option<u8>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlagGroupType {
     pub properties: Option<Vec<PropertyFilter>>,
-    pub rollout_percentage: Option<f32>,
+    pub rollout_percentage: Option<f64>,
     pub variant: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MultivariateFlagVariant {
     pub key: String,
     pub name: Option<String>,
-    pub rollout_percentage: f32,
+    pub rollout_percentage: f64,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MultivariateFlagOptions {
     pub variants: Vec<MultivariateFlagVariant>,
 }
@@ -84,7 +84,7 @@ pub struct MultivariateFlagOptions {
 // TODO: test name with https://www.fileformat.info/info/charset/UTF-16/list.htm values, like '𝖕𝖗𝖔𝖕𝖊𝖗𝖙𝖞': `𝓿𝓪𝓵𝓾𝓮`
 
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlagFilters {
     pub groups: Vec<FlagGroupType>,
     pub multivariate: Option<MultivariateFlagOptions>,
@@ -93,7 +93,7 @@ pub struct FlagFilters {
     pub super_groups: Option<Vec<FlagGroupType>>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FeatureFlag {
     pub id: i64,
     pub team_id: i64,
@@ -106,6 +106,20 @@ pub struct FeatureFlag {
     pub active: bool,
     #[serde(default)]
     pub ensure_experience_continuity: bool,
+}
+
+impl FeatureFlag {
+    pub fn get_group_type_index(&self) -> Option<u8> {
+        self.filters.aggregation_group_type_index
+    }
+
+    pub fn get_conditions(&self) -> &Vec<FlagGroupType> {
+        &self.filters.groups
+    }
+
+    pub fn get_variants(&self) -> Vec<MultivariateFlagVariant> {
+        self.filters.multivariate.clone().map_or(vec![], |m| m.variants)
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
