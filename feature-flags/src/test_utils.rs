@@ -3,7 +3,9 @@ use serde_json::json;
 use std::sync::Arc;
 
 use crate::{
-    flag_definitions::{self, FeatureFlag}, redis::{Client, RedisClient}, team::{self, Team}
+    flag_definitions::{self, FeatureFlag},
+    redis::{Client, RedisClient},
+    team::{self, Team},
 };
 use rand::{distributions::Alphanumeric, Rng};
 
@@ -40,8 +42,11 @@ pub async fn insert_new_team_in_redis(client: Arc<RedisClient>) -> Result<Team, 
     Ok(team)
 }
 
-pub async fn insert_flags_for_team_in_redis(client: Arc<RedisClient>, team_id: i64, json_value: Option<String>) -> Result<(), Error> {
-
+pub async fn insert_flags_for_team_in_redis(
+    client: Arc<RedisClient>,
+    team_id: i64,
+    json_value: Option<String>,
+) -> Result<(), Error> {
     let payload = match json_value {
         Some(value) => value,
         None => json!([{
@@ -64,16 +69,13 @@ pub async fn insert_flags_for_team_in_redis(client: Arc<RedisClient>, team_id: i
                     },
                 ],
             },
-        }]).to_string(),
+        }])
+        .to_string(),
     };
 
     client
         .set(
-            format!(
-                "{}{}",
-                flag_definitions::TEAM_FLAGS_CACHE_PREFIX,
-                team_id
-            ),
+            format!("{}{}", flag_definitions::TEAM_FLAGS_CACHE_PREFIX, team_id),
             payload,
         )
         .await?;
@@ -91,7 +93,6 @@ pub fn setup_redis_client(url: Option<String>) -> Arc<RedisClient> {
 }
 
 pub fn create_flag_from_json(json_value: Option<String>) -> Vec<FeatureFlag> {
-
     let payload = match json_value {
         Some(value) => value,
         None => json!([{
@@ -115,9 +116,11 @@ pub fn create_flag_from_json(json_value: Option<String>) -> Vec<FeatureFlag> {
                     },
                 ],
             },
-        }]).to_string(),
+        }])
+        .to_string(),
     };
 
-    let flags: Vec<FeatureFlag> = serde_json::from_str(&payload).expect("Failed to parse data to flags list");
+    let flags: Vec<FeatureFlag> =
+        serde_json::from_str(&payload).expect("Failed to parse data to flags list");
     flags
 }

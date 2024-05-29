@@ -20,7 +20,6 @@ pub struct FeatureFlagMatcher {
 const LONG_SCALE: u64 = 0xfffffffffffffff;
 
 impl FeatureFlagMatcher {
-
     pub fn new(distinct_id: String) -> Self {
         FeatureFlagMatcher {
             // flags,
@@ -29,7 +28,6 @@ impl FeatureFlagMatcher {
     }
 
     pub fn get_match(&self, feature_flag: &FeatureFlag) -> FeatureFlagMatch {
-
         if self.hashed_identifier(feature_flag).is_none() {
             return FeatureFlagMatch {
                 matches: false,
@@ -41,21 +39,23 @@ impl FeatureFlagMatcher {
         // TODO: Variant overrides condition sort
 
         for (index, condition) in feature_flag.get_conditions().iter().enumerate() {
-            let (is_match, evaluation_reason) = self.is_condition_match(feature_flag, condition, index);
+            let (is_match, evaluation_reason) =
+                self.is_condition_match(feature_flag, condition, index);
 
             if is_match {
-
                 let variant = match condition.variant.clone() {
                     Some(variant_override) => {
-                        if feature_flag.get_variants().iter().any(|v| v.key == variant_override) {
+                        if feature_flag
+                            .get_variants()
+                            .iter()
+                            .any(|v| v.key == variant_override)
+                        {
                             Some(variant_override)
                         } else {
                             self.get_matching_variant(feature_flag)
                         }
                     }
-                    None => {
-                        self.get_matching_variant(feature_flag)
-                    }
+                    None => self.get_matching_variant(feature_flag),
                 };
 
                 // let payload = self.get_matching_payload(is_match, variant, feature_flag);
@@ -71,7 +71,12 @@ impl FeatureFlagMatcher {
         }
     }
 
-    pub fn is_condition_match(&self, feature_flag: &FeatureFlag, condition: &FlagGroupType, _index: usize) -> (bool, String) {
+    pub fn is_condition_match(
+        &self,
+        feature_flag: &FeatureFlag,
+        condition: &FlagGroupType,
+        _index: usize,
+    ) -> (bool, String) {
         let rollout_percentage = condition.rollout_percentage.unwrap_or(100.0);
         let mut condition_match = true;
         if condition.properties.is_some() {
@@ -93,7 +98,6 @@ impl FeatureFlagMatcher {
         }
 
         (true, "CONDITION_MATCH".to_string())
-
     }
 
     pub fn hashed_identifier(&self, feature_flag: &FeatureFlag) -> Option<String> {
@@ -112,14 +116,20 @@ impl FeatureFlagMatcher {
     /// we can do _hash(key, identifier) < 0.2
     pub fn get_hash(&self, feature_flag: &FeatureFlag, salt: &str) -> f64 {
         // check if hashed_identifier is None
-        let hashed_identifier = self.hashed_identifier(feature_flag).expect("hashed_identifier is None when computing hash");
+        let hashed_identifier = self
+            .hashed_identifier(feature_flag)
+            .expect("hashed_identifier is None when computing hash");
         let hash_key = format!("{}.{}{}", feature_flag.key, hashed_identifier, salt);
         let mut hasher = Sha1::new();
         hasher.update(hash_key.as_bytes());
         let result = hasher.finalize();
         // :TRICKY: Convert the first 15 characters of the digest to a hexadecimal string
         // not sure if this is correct, padding each byte as 2 characters
-        let hex_str: String = result.iter().map(|byte| format!("{:02x}", byte)).collect::<String>()[..15].to_string();
+        let hex_str: String = result
+            .iter()
+            .map(|byte| format!("{:02x}", byte))
+            .collect::<String>()[..15]
+            .to_string();
         let hash_val = u64::from_str_radix(&hex_str, 16).unwrap();
 
         hash_val as f64 / LONG_SCALE as f64

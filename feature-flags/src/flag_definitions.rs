@@ -14,9 +14,7 @@ pub const TEAM_FLAGS_CACHE_PREFIX: &str = "posthog:1:team_feature_flags_";
 // TODO: Hmm, revisit when dealing with groups, but seems like
 // ideal to just treat it as a u8 and do our own validation on top
 #[derive(Debug, Deserialize, Serialize)]
-pub enum GroupTypeIndex {
-    
-}
+pub enum GroupTypeIndex {}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum OperatorType {
@@ -83,7 +81,6 @@ pub struct MultivariateFlagOptions {
 
 // TODO: test name with https://www.fileformat.info/info/charset/UTF-16/list.htm values, like '𝖕𝖗𝖔𝖕𝖊𝖗𝖙𝖞': `𝓿𝓪𝓵𝓾𝓮`
 
-
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlagFilters {
     pub groups: Vec<FlagGroupType>,
@@ -118,7 +115,10 @@ impl FeatureFlag {
     }
 
     pub fn get_variants(&self) -> Vec<MultivariateFlagVariant> {
-        self.filters.multivariate.clone().map_or(vec![], |m| m.variants)
+        self.filters
+            .multivariate
+            .clone()
+            .map_or(vec![], |m| m.variants)
     }
 }
 
@@ -153,16 +153,15 @@ impl FeatureFlagList {
                 }
             })?;
 
-        let flags_list: Vec<FeatureFlag> = serde_json::from_str(&serialized_flags).map_err(|e| {
-            tracing::error!("failed to parse data to flags list: {}", e);
-            println!("failed to parse data: {}", e);
+        let flags_list: Vec<FeatureFlag> =
+            serde_json::from_str(&serialized_flags).map_err(|e| {
+                tracing::error!("failed to parse data to flags list: {}", e);
+                println!("failed to parse data: {}", e);
 
-            FlagError::DataParsingError
-        })?;
+                FlagError::DataParsingError
+            })?;
 
-        Ok(FeatureFlagList {
-            flags: flags_list,
-        })
+        Ok(FeatureFlagList { flags: flags_list })
     }
 }
 
@@ -171,7 +170,9 @@ mod tests {
     use rand::Rng;
 
     use super::*;
-    use crate::test_utils::{insert_new_team_in_redis, insert_flags_for_team_in_redis, setup_redis_client};
+    use crate::test_utils::{
+        insert_flags_for_team_in_redis, insert_new_team_in_redis, setup_redis_client,
+    };
 
     #[tokio::test]
     async fn test_fetch_flags_from_redis() {
@@ -179,7 +180,9 @@ mod tests {
 
         let team = insert_new_team_in_redis(client.clone()).await.unwrap();
 
-        insert_flags_for_team_in_redis(client.clone(), team.id, None).await.expect("Failed to insert flags");
+        insert_flags_for_team_in_redis(client.clone(), team.id, None)
+            .await
+            .expect("Failed to insert flags");
 
         let flags_from_redis = FeatureFlagList::from_redis(client.clone(), team.id)
             .await
@@ -211,5 +214,4 @@ mod tests {
             _ => panic!("Expected RedisUnavailable"),
         };
     }
-
 }
