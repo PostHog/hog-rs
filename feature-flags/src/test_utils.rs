@@ -3,8 +3,7 @@ use serde_json::json;
 use std::sync::Arc;
 
 use crate::{
-    flag_definitions, redis::{Client, RedisClient}, team::{self, Team}
-};
+    flag_definitions, redis::{Client, RedisClient}, team::{self, Team}}
 use rand::{distributions::Alphanumeric, Rng};
 
 pub fn random_string(prefix: &str, length: usize) -> String {
