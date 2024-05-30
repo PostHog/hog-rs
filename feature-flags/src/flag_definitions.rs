@@ -164,7 +164,7 @@ mod tests {
     async fn test_fetch_flags_from_redis() {
         let client = setup_redis_client(None);
 
-        let team = insert_new_team_in_redis(client.clone()).await.unwrap();
+        let team = insert_new_team_in_redis(client.clone()).await.expect("Failed to insert team");
 
         insert_flags_for_team_in_redis(client.clone(), team.id, None)
             .await
@@ -172,13 +172,13 @@ mod tests {
 
         let flags_from_redis = FeatureFlagList::from_redis(client.clone(), team.id)
             .await
-            .unwrap();
+            .expect("Failed to fetch flags from redis");
         assert_eq!(flags_from_redis.flags.len(), 1);
-        let flag = flags_from_redis.flags.get(0).unwrap();
+        let flag = flags_from_redis.flags.get(0).expect("Empty flags in redis");
         assert_eq!(flag.key, "flag1");
         assert_eq!(flag.team_id, team.id);
         assert_eq!(flag.filters.groups.len(), 1);
-        assert_eq!(flag.filters.groups[0].properties.as_ref().unwrap().len(), 1);
+        assert_eq!(flag.filters.groups[0].properties.as_ref().expect("Properties don't exist on flag").len(), 1);
     }
 
     #[tokio::test]
