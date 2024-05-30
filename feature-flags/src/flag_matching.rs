@@ -1,6 +1,6 @@
+use crate::flag_definitions::{FeatureFlag, FlagGroupType};
 use sha1::{Digest, Sha1};
 use std::fmt::Write;
-use crate::flag_definitions::{FeatureFlag, FlagGroupType};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct FeatureFlagMatch {
@@ -136,12 +136,11 @@ impl FeatureFlagMatcher {
         let result = hasher.finalize();
         // :TRICKY: Convert the first 15 characters of the digest to a hexadecimal string
         // not sure if this is correct, padding each byte as 2 characters
-        let hex_str: String = result
-            .iter()
-            .fold(String::new(), |mut acc, byte| {
-                let _ = write!(acc, "{:02x}", byte);
-                acc
-            })[..15].to_string();
+        let hex_str: String = result.iter().fold(String::new(), |mut acc, byte| {
+            let _ = write!(acc, "{:02x}", byte);
+            acc
+        })[..15]
+            .to_string();
         let hash_val = u64::from_str_radix(&hex_str, 16).unwrap();
 
         hash_val as f64 / LONG_SCALE as f64
