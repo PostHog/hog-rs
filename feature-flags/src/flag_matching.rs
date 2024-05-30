@@ -1,5 +1,5 @@
 use sha1::{Digest, Sha1};
-
+use std::fmt::Write;
 use crate::flag_definitions::{FeatureFlag, FlagGroupType};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -138,9 +138,10 @@ impl FeatureFlagMatcher {
         // not sure if this is correct, padding each byte as 2 characters
         let hex_str: String = result
             .iter()
-            .map(|byte| format!("{:02x}", byte))
-            .collect::<String>()[..15]
-            .to_string();
+            .fold(String::new(), |mut acc, byte| {
+                let _ = write!(acc, "{:02x}", byte);
+                acc
+            })[..15].to_string();
         let hash_val = u64::from_str_radix(&hex_str, 16).unwrap();
 
         hash_val as f64 / LONG_SCALE as f64
