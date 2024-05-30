@@ -68,7 +68,7 @@ impl rdkafka::ClientContext for KafkaContext {
                 )
                 .set(rtt.p95 as f64);
                 gauge!(
-                    "capture_kafka_produce_rtt_latency_ms",
+                    "capture_kafka_produce_rtt_latency_us",
                     "quantile" => "p99",
                     "broker" => id_string.clone()
                 )
