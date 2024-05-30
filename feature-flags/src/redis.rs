@@ -59,11 +59,6 @@ impl Client for RedisClient {
         Ok(fut?)
     }
 
-    // TODO: Ask Xavier if there's a better way to handle this.
-    // The problem: I want to match on the error type from this function, and do appropriate things like 400 or 500 response.
-    // Buuut, if I use anyhow::Error, I can't reverse-coerce into a NotFound or serde_pickle::Error.
-    // Thus, I need to create a custom error enum of all possible errors + my own custom not found, so I can match on it.
-    // Is this the canonical way?
     async fn get(&self, k: String) -> Result<String, CustomRedisError> {
         let mut conn = self.client.get_async_connection().await?;
 
