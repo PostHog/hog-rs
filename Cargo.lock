@@ -702,7 +702,6 @@ dependencies = [
  "axum-client-ip",
  "bytes",
  "envconfig",
- "hex",
  "once_cell",
  "rand",
  "redis",
