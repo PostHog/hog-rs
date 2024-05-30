@@ -115,7 +115,6 @@ pub struct FeatureFlagList {
 }
 
 impl FeatureFlagList {
-
     /// Returns feature flags from redis given a team_id
     #[instrument(skip_all)]
     pub async fn from_redis(
@@ -164,7 +163,9 @@ mod tests {
     async fn test_fetch_flags_from_redis() {
         let client = setup_redis_client(None);
 
-        let team = insert_new_team_in_redis(client.clone()).await.expect("Failed to insert team");
+        let team = insert_new_team_in_redis(client.clone())
+            .await
+            .expect("Failed to insert team");
 
         insert_flags_for_team_in_redis(client.clone(), team.id, None)
             .await
@@ -178,7 +179,14 @@ mod tests {
         assert_eq!(flag.key, "flag1");
         assert_eq!(flag.team_id, team.id);
         assert_eq!(flag.filters.groups.len(), 1);
-        assert_eq!(flag.filters.groups[0].properties.as_ref().expect("Properties don't exist on flag").len(), 1);
+        assert_eq!(
+            flag.filters.groups[0]
+                .properties
+                .as_ref()
+                .expect("Properties don't exist on flag")
+                .len(),
+            1
+        );
     }
 
     #[tokio::test]
