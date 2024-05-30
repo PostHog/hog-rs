@@ -48,7 +48,7 @@ pub fn match_property(
                     // TODO: Check if `to_string()` coerces all types to string correctly.
                     return value
                         .as_array()
-                        .unwrap()
+                        .expect("expected array value")
                         .iter()
                         .map(|v| v.to_string().to_lowercase())
                         .collect::<Vec<String>>()
@@ -180,14 +180,17 @@ fn is_truthy_or_falsy_property_value(value: &Value) -> bool {
     }
 
     if value.is_string() {
-        let parsed_value = value.as_str().unwrap().to_lowercase();
+        let parsed_value = value
+            .as_str()
+            .expect("expected string value")
+            .to_lowercase();
         return parsed_value == "true" || parsed_value == "false";
     }
 
     if value.is_array() {
         return value
             .as_array()
-            .unwrap()
+            .expect("expected array value")
             .iter()
             .all(|v| is_truthy_or_falsy_property_value(v));
     }
@@ -197,18 +200,21 @@ fn is_truthy_or_falsy_property_value(value: &Value) -> bool {
 
 fn is_truthy_property_value(value: &Value) -> bool {
     if value.is_boolean() {
-        return value.as_bool().unwrap();
+        return value.as_bool().expect("expected boolean value");
     }
 
     if value.is_string() {
-        let parsed_value = value.as_str().unwrap().to_lowercase();
+        let parsed_value = value
+            .as_str()
+            .expect("expected string value")
+            .to_lowercase();
         return parsed_value == "true";
     }
 
     if value.is_array() {
         return value
             .as_array()
-            .unwrap()
+            .expect("expected array value")
             .iter()
             .all(|v| is_truthy_property_value(v));
     }
