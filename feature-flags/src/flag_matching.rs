@@ -11,6 +11,16 @@ pub struct FeatureFlagMatch {
     //payload
 }
 
+// TODO: Rework FeatureFlagMatcher - python has a pretty awkward interface, where we pass in all flags, and then again
+// the flag to match. I don't think there's any reason anymore to store the flags in the matcher, since we can just
+// pass the flag to match directly to the get_match method. This will also make the matcher more stateless.
+// Potentially, we could also make the matcher a long-lived object, with caching for group keys and such.
+// It just takes in the flag and distinct_id and returns the match...
+// Or, make this fully stateless
+// and have a separate cache struct for caching group keys, cohort definitions, etc. - and check size, if we can keep it in memory
+// for all teams. If not, we can have a LRU cache, or a cache that stores only the most recent N keys.
+// But, this can be a future refactor, for now just focusing on getting the basic matcher working, write lots and lots of tests
+// and then we can easily refactor stuff around.
 #[derive(Debug)]
 pub struct FeatureFlagMatcher {
     // pub flags: Vec<FeatureFlag>,
@@ -35,14 +45,15 @@ impl FeatureFlagMatcher {
             };
         }
 
-        // TODO: super groups
+        // TODO: super groups for early access
         // TODO: Variant overrides condition sort
 
         for (index, condition) in feature_flag.get_conditions().iter().enumerate() {
-            let (is_match, evaluation_reason) =
+            let (is_match, _evaluation_reason) =
                 self.is_condition_match(feature_flag, condition, index);
 
             if is_match {
+                // TODO: This is a bit awkward, we should handle overrides only when variants exist.
                 let variant = match condition.variant.clone() {
                     Some(variant_override) => {
                         if feature_flag

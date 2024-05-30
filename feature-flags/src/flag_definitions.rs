@@ -129,8 +129,7 @@ pub struct FeatureFlagList {
 }
 
 impl FeatureFlagList {
-    /// Returns feature flags given a team_id
-
+    /// Returns feature flags from redis given a team_id
     #[instrument(skip_all)]
     pub async fn from_redis(
         client: Arc<dyn Client + Send + Sync>,
@@ -143,6 +142,8 @@ impl FeatureFlagList {
             .map_err(|e| match e {
                 CustomRedisError::NotFound => FlagError::TokenValidationError,
                 CustomRedisError::PickleError(_) => {
+                    // TODO: Implement From trait for FlagError so we don't need to map
+                    // CustomRedisError ourselves
                     tracing::error!("failed to fetch data: {}", e);
                     println!("failed to fetch data: {}", e);
                     FlagError::DataParsingError
@@ -167,8 +168,6 @@ impl FeatureFlagList {
 
 #[cfg(test)]
 mod tests {
-    use rand::Rng;
-
     use super::*;
     use crate::test_utils::{
         insert_flags_for_team_in_redis, insert_new_team_in_redis, setup_redis_client,
