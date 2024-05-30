@@ -16,7 +16,7 @@ pub const TEAM_FLAGS_CACHE_PREFIX: &str = "posthog:1:team_feature_flags_";
 #[derive(Debug, Deserialize, Serialize)]
 pub enum GroupTypeIndex {}
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub enum OperatorType {
     #[serde(rename = "exact")]
     Exact,
