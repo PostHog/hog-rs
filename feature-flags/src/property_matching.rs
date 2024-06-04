@@ -13,9 +13,11 @@ pub enum FlagMatchingError {
 }
 
 pub fn to_string_representation(value: &Value) -> String {
-
     if value.is_string() {
-        return value.as_str().expect("string slice should always exist for string value").to_string();
+        return value
+            .as_str()
+            .expect("string slice should always exist for string value")
+            .to_string();
     }
     value.to_string()
 }
@@ -247,8 +249,6 @@ mod test_match_properties {
     /// Copy of https://github.com/PostHog/posthog/blob/master/posthog/queries/test/test_base.py#L35
     /// with some modifications to match Rust's behavior
     /// and to test the match_property function
-    
-
     use super::*;
     use serde_json::json;
 
@@ -410,7 +410,7 @@ mod test_match_properties {
             true
         );
     }
-    
+
     #[test]
     fn test_match_properties_is_not() {
         let property_a = PropertyFilter {
@@ -922,7 +922,6 @@ mod test_match_properties {
             .expect("expected match to exist"),
             false
         );
-
     }
 
     #[test]
@@ -1261,8 +1260,12 @@ mod test_match_properties {
         };
 
         assert_eq!(
-            match_property(&property_a, &HashMap::from([("key".to_string(), json!(null))]), true)
-                .expect("expected match to exist"),
+            match_property(
+                &property_a,
+                &HashMap::from([("key".to_string(), json!(null))]),
+                true
+            )
+            .expect("expected match to exist"),
             false
         );
         assert_eq!(
@@ -1284,8 +1287,12 @@ mod test_match_properties {
         };
 
         assert_eq!(
-            match_property(&property_b, &HashMap::from([("key".to_string(), json!(null))]), true)
-                .expect("expected match to exist"),
+            match_property(
+                &property_b,
+                &HashMap::from([("key".to_string(), json!(null))]),
+                true
+            )
+            .expect("expected match to exist"),
             true
         );
 
@@ -1298,8 +1305,12 @@ mod test_match_properties {
         };
 
         assert_eq!(
-            match_property(&property_c, &HashMap::from([("key".to_string(), json!(null))]), true)
-                .expect("expected match to exist"),
+            match_property(
+                &property_c,
+                &HashMap::from([("key".to_string(), json!(null))]),
+                true
+            )
+            .expect("expected match to exist"),
             true
         );
         assert_eq!(
@@ -1321,8 +1332,12 @@ mod test_match_properties {
         };
 
         assert_eq!(
-            match_property(&property_d, &HashMap::from([("key".to_string(), json!(null))]), true)
-                .expect("expected match to exist"),
+            match_property(
+                &property_d,
+                &HashMap::from([("key".to_string(), json!(null))]),
+                true
+            )
+            .expect("expected match to exist"),
             false
         );
 
@@ -1335,8 +1350,12 @@ mod test_match_properties {
         };
 
         assert_eq!(
-            match_property(&property_d_upper_case, &HashMap::from([("key".to_string(), json!(null))]), true)
-                .expect("expected match to exist"),
+            match_property(
+                &property_d_upper_case,
+                &HashMap::from([("key".to_string(), json!(null))]),
+                true
+            )
+            .expect("expected match to exist"),
             false
         );
 
@@ -1371,7 +1390,8 @@ mod test_match_properties {
                 &property_a,
                 &HashMap::from([("key2".to_string(), json!("value"))]),
                 false
-            ).expect("Expected no errors with full props mode for non-existent keys"),
+            )
+            .expect("Expected no errors with full props mode for non-existent keys"),
             false
         );
         assert_eq!(
@@ -1392,7 +1412,8 @@ mod test_match_properties {
                 &property_exact,
                 &HashMap::from([("key2".to_string(), json!("value"))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1409,7 +1430,8 @@ mod test_match_properties {
                 &property_is_set,
                 &HashMap::from([("key2".to_string(), json!("value"))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1426,7 +1448,8 @@ mod test_match_properties {
                 &property_is_not_set,
                 &HashMap::from([("key2".to_string(), json!("value"))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             true
         );
         assert_eq!(
@@ -1434,7 +1457,8 @@ mod test_match_properties {
                 &property_is_not_set,
                 &HashMap::from([("key".to_string(), json!("value"))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1444,7 +1468,8 @@ mod test_match_properties {
                 &property_is_not_set,
                 &HashMap::from([("key".to_string(), json!("value"))]),
                 true
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
         // is not set returns error when key doesn't exist
@@ -1453,7 +1478,8 @@ mod test_match_properties {
                 &property_is_not_set,
                 &HashMap::from([("key2".to_string(), json!("value"))]),
                 true
-            ).is_err(),
+            )
+            .is_err(),
             true
         );
 
@@ -1470,7 +1496,8 @@ mod test_match_properties {
                 &property_icontains,
                 &HashMap::from([("key2".to_string(), json!("value"))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1487,7 +1514,8 @@ mod test_match_properties {
                 &property_not_icontains,
                 &HashMap::from([("key2".to_string(), json!("value"))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1504,7 +1532,8 @@ mod test_match_properties {
                 &property_regex,
                 &HashMap::from([("key2".to_string(), json!("value.com"))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1521,7 +1550,8 @@ mod test_match_properties {
                 &property_not_regex,
                 &HashMap::from([("key2".to_string(), json!("value.com"))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1538,7 +1568,8 @@ mod test_match_properties {
                 &property_gt,
                 &HashMap::from([("key2".to_string(), json!(2))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1555,7 +1586,8 @@ mod test_match_properties {
                 &property_gte,
                 &HashMap::from([("key2".to_string(), json!(2))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1572,7 +1604,8 @@ mod test_match_properties {
                 &property_lt,
                 &HashMap::from([("key2".to_string(), json!(0))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1589,7 +1622,8 @@ mod test_match_properties {
                 &property_lte,
                 &HashMap::from([("key2".to_string(), json!(0))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
 
@@ -1607,10 +1641,9 @@ mod test_match_properties {
                 &property_is_date_before,
                 &HashMap::from([("key2".to_string(), json!("2021-01-02"))]),
                 false
-            ).expect("Expected no errors with full props mode"),
+            )
+            .expect("Expected no errors with full props mode"),
             false
         );
-
-
     }
 }
