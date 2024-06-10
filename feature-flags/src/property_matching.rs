@@ -68,8 +68,8 @@ pub fn match_property(
                         .collect::<Vec<String>>()
                         .contains(&to_string_representation(override_value).to_lowercase());
                 }
-                return to_string_representation(value).to_lowercase()
-                    == to_string_representation(override_value).to_lowercase();
+                to_string_representation(value).to_lowercase()
+                    == to_string_representation(override_value).to_lowercase()
             };
 
             if let Some(match_value) = match_value {
@@ -79,7 +79,7 @@ pub fn match_property(
                     Ok(!compute_exact_match(value, match_value))
                 }
             } else {
-                return Ok(false);
+                Ok(false)
             }
         }
         OperatorType::IsSet => Ok(matching_property_values.contains_key(key)),
@@ -162,14 +162,14 @@ pub fn match_property(
             if let Some(override_value) = to_f64_representation(value) {
                 Ok(compare(parsed_value, override_value, operator))
             } else {
-                return Err(FlagMatchingError::ValidationError(
+                Err(FlagMatchingError::ValidationError(
                     "override value is not a number".to_string(),
-                ));
+                ))
             }
         }
         OperatorType::IsDateExact | OperatorType::IsDateAfter | OperatorType::IsDateBefore => {
             // TODO: Handle date operators
-            return Ok(false);
+            Ok(false)
             // let parsed_date = determine_parsed_date_for_property_matching(match_value);
 
             // if parsed_date.is_none() {
@@ -212,7 +212,7 @@ fn is_truthy_or_falsy_property_value(value: &Value) -> bool {
             .as_array()
             .expect("expected array value")
             .iter()
-            .all(|v| is_truthy_or_falsy_property_value(v));
+            .all(is_truthy_or_falsy_property_value);
     }
 
     false
@@ -236,7 +236,7 @@ fn is_truthy_property_value(value: &Value) -> bool {
             .as_array()
             .expect("expected array value")
             .iter()
-            .all(|v| is_truthy_property_value(v));
+            .all(is_truthy_property_value);
     }
 
     false
