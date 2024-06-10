@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::sync::Arc;
 use tracing::instrument;
 
@@ -13,44 +13,30 @@ pub const TEAM_FLAGS_CACHE_PREFIX: &str = "posthog:1:team_feature_flags_";
 
 // TODO: Hmm, revisit when dealing with groups, but seems like
 // ideal to just treat it as a u8 and do our own validation on top
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub enum GroupTypeIndex {}
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum OperatorType {
-    #[serde(rename = "exact")]
     Exact,
-    #[serde(rename = "is_not")]
     IsNot,
-    #[serde(rename = "icontains")]
     Icontains,
-    #[serde(rename = "not_icontains")]
     NotIcontains,
-    #[serde(rename = "regex")]
     Regex,
-    #[serde(rename = "not_regex")]
     NotRegex,
-    #[serde(rename = "gt")]
     Gt,
-    #[serde(rename = "lt")]
     Lt,
-    #[serde(rename = "gte")]
     Gte,
-    #[serde(rename = "lte")]
     Lte,
-    #[serde(rename = "is_set")]
     IsSet,
-    #[serde(rename = "is_not_set")]
     IsNotSet,
-    #[serde(rename = "is_date_exact")]
     IsDateExact,
-    #[serde(rename = "is_date_after")]
     IsDateAfter,
-    #[serde(rename = "is_date_before")]
     IsDateBefore,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct PropertyFilter {
     pub key: String,
     // TODO: Probably need a default for value?
@@ -63,28 +49,28 @@ pub struct PropertyFilter {
     pub group_type_index: Option<u8>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FlagGroupType {
     pub properties: Option<Vec<PropertyFilter>>,
     pub rollout_percentage: Option<f64>,
     pub variant: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct MultivariateFlagVariant {
     pub key: String,
     pub name: Option<String>,
     pub rollout_percentage: f64,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct MultivariateFlagOptions {
     pub variants: Vec<MultivariateFlagVariant>,
 }
 
 // TODO: test name with https://www.fileformat.info/info/charset/UTF-16/list.htm values, like '𝖕𝖗𝖔𝖕𝖊𝖗𝖙𝖞': `𝓿𝓪𝓵𝓾𝓮`
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FlagFilters {
     pub groups: Vec<FlagGroupType>,
     pub multivariate: Option<MultivariateFlagOptions>,
@@ -93,7 +79,7 @@ pub struct FlagFilters {
     pub super_groups: Option<Vec<FlagGroupType>>,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct FeatureFlag {
     pub id: i64,
     pub team_id: i64,
@@ -125,7 +111,7 @@ impl FeatureFlag {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 
 pub struct FeatureFlagList {
     pub flags: Vec<FeatureFlag>,
@@ -180,7 +166,9 @@ mod tests {
     async fn test_fetch_flags_from_redis() {
         let client = setup_redis_client(None);
 
-        let team = insert_new_team_in_redis(client.clone()).await.unwrap();
+        let team = insert_new_team_in_redis(client.clone())
+            .await
+            .expect("Failed to insert team");
 
         insert_flags_for_team_in_redis(client.clone(), team.id, None)
             .await
@@ -188,13 +176,20 @@ mod tests {
 
         let flags_from_redis = FeatureFlagList::from_redis(client.clone(), team.id)
             .await
-            .unwrap();
+            .expect("Failed to fetch flags from redis");
         assert_eq!(flags_from_redis.flags.len(), 1);
-        let flag = flags_from_redis.flags.get(0).unwrap();
+        let flag = flags_from_redis.flags.get(0).expect("Empty flags in redis");
         assert_eq!(flag.key, "flag1");
         assert_eq!(flag.team_id, team.id);
         assert_eq!(flag.filters.groups.len(), 1);
-        assert_eq!(flag.filters.groups[0].properties.as_ref().unwrap().len(), 1);
+        assert_eq!(
+            flag.filters.groups[0]
+                .properties
+                .as_ref()
+                .expect("Properties don't exist on flag")
+                .len(),
+            1
+        );
     }
 
     #[tokio::test]

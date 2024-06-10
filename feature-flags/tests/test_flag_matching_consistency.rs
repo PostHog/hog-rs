@@ -1,7 +1,6 @@
 /// These tests are common between all libraries doing local evaluation of feature flags.
 /// This ensures there are no mismatches between implementations.
 use feature_flags::flag_matching::{FeatureFlagMatch, FeatureFlagMatcher};
-// use feature_flags::flag_definitions::{FeatureFlag, FlagGroupType};
 
 use feature_flags::test_utils::create_flag_from_json;
 use serde_json::json;
